@@ -126,7 +126,7 @@ export default function DashboardLayout({ children }) {
 
       {/* Main content */}
       <div className="lg:pl-64 flex flex-col">
-        <div className="sticky top-0 z-10 flex-shrink-0 flex h-16 bg-white border-b border-gray-200">
+        <div className="sticky top-0 z-10 flex-shrink-0 flex h-16 bg-white border-b border-gray-200 dashboard-header">
           <button
             type="button"
             className="px-4 border-r border-gray-200 text-gray-500 lg:hidden"
@@ -175,7 +175,13 @@ export default function DashboardLayout({ children }) {
         </div>
 
         <main className="flex-1">
-          <div className="py-6 px-4 sm:px-6 lg:px-8">{children}</div>
+          <div className="py-6 px-4 sm:px-6 lg:px-8">
+            <div className="text-2xl font-bold capitalize">{userProfile?.plan || "Free"}</div>
+            <p className="text-xs text-muted-foreground">
+              {userProfile?.promotions_used || 0} of {userProfile?.promotions_limit || 2} used
+            </p>
+            {children}
+          </div>
         </main>
       </div>
     </div>

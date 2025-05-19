@@ -51,11 +51,11 @@ export async function signUp(email: string, password: string, userData: any) {
     await setDoc(doc(db, "businesses", userCredential.user.uid), {
       ...userData,
       email,
-      createdAt: new Date().toISOString(),
+      created_at: new Date().toISOString(),
       status: "pending",
       plan: "free",
-      promotionsUsed: 0,
-      promotionsLimit: 2,
+      promotions_used: 0,
+      promotions_limit: 2,
     })
     return userCredential.user
   } catch (error) {

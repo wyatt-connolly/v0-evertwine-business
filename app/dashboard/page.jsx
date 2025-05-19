@@ -1,198 +1,187 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useAuthState } from "@/lib/auth-utils"
+import { useState, useEffect } from "react"
+import { auth, db } from "@/lib/firebase"
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Loader2, Tag, Users, DollarSign, TrendingUp } from "lucide-react"
 import Link from "next/link"
-import { collection, query, where, getDocs } from "firebase/firestore"
-import { db, firebaseInitError } from "@/lib/firebase"
-import FirebaseError from "@/components/firebase-error"
+import { PlusCircle, TrendingUp, Settings, Calendar } from "lucide-react"
 
-export default function DashboardPage() {
-  const { user, userProfile, loading } = useAuthState()
-  const [promotions, setPromotions] = useState([])
-  const [stats, setStats] = useState({
-    totalPromotions: 0,
-    livePromotions: 0,
-    pendingPromotions: 0,
-    views: 0,
-    clicks: 0,
-  })
-  const [isLoading, setIsLoading] = useState(true)
+export default function Dashboard() {
+  const [businessName, setBusinessName] = useState("")
+  const [activePromotions, setActivePromotions] = useState(0)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (user && db) {
+    const fetchBusinessData = async () => {
+      try {
+        const user = auth.currentUser
+        if (!user) return
+
+        // Try to get data from business_users collection first
         try {
-          // Fetch promotions
-          const promotionsQuery = query(collection(db, "promotions"), where("businessId", "==", user.uid))
-          const promotionsSnapshot = await getDocs(promotionsQuery)
-          const promotionsData = promotionsSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
-          setPromotions(promotionsData)
+          const userDoc = await getDoc(doc(db, "business_users", user.uid))
+          if (userDoc.exists()) {
+            const userData = userDoc.data()
+            setBusinessName(userData.business_name || userData.businessName || "Your Business")
 
-          // Calculate stats
-          const livePromotions = promotionsData.filter((p) => p.status === "live").length
-          const pendingPromotions = promotionsData.filter((p) => p.status === "pending").length
-
-          // Calculate total views and clicks
-          let totalViews = 0
-          let totalClicks = 0
-          promotionsData.forEach((promo) => {
-            totalViews += promo.views || 0
-            totalClicks += promo.clicks || 0
-          })
-
-          setStats({
-            totalPromotions: promotionsData.length,
-            livePromotions,
-            pendingPromotions,
-            views: totalViews,
-            clicks: totalClicks,
-          })
+            // Count active promotions
+            const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
+            const promotionsSnapshot = await getDocs(promotionsQuery)
+            setActivePromotions(promotionsSnapshot.size)
+            setLoading(false)
+            return
+          }
         } catch (error) {
-          console.error("Error fetching dashboard data:", error)
-        } finally {
-          setIsLoading(false)
+          console.error("Error fetching from business_users:", error)
         }
-      } else if (!loading) {
-        setIsLoading(false)
+
+        // Fallback to businesses collection
+        try {
+          const businessDoc = await getDoc(doc(db, "businesses", user.uid))
+          if (businessDoc.exists()) {
+            const businessData = businessDoc.data()
+            setBusinessName(businessData.business_name || businessData.businessName || "Your Business")
+
+            // Count active promotions
+            const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
+            const promotionsSnapshot = await getDocs(promotionsQuery)
+            setActivePromotions(promotionsSnapshot.size)
+          }
+        } catch (error) {
+          console.error("Error fetching from businesses:", error)
+        }
+      } catch (error) {
+        console.error("Error fetching business data:", error)
+      } finally {
+        setLoading(false)
       }
     }
 
-    fetchData()
-  }, [user, loading])
+    fetchBusinessData()
+  }, [])
 
-  if (firebaseInitError) {
-    return <FirebaseError />
-  }
-
-  if (loading || isLoading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#6A0DAD]" />
+      <div className="flex h-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-[#6A0DAD]"></div>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="flex flex-col justify-between space-y-2 md:flex-row md:items-center md:space-y-0">
+        <h2 className="text-3xl font-bold tracking-tight">Welcome, {businessName}!</h2>
+        <div className="flex items-center space-x-2">
+          <Link href="/dashboard/promotions/new">
+            <Button className="bg-[#6A0DAD] hover:bg-[#5a0b93]">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Create Promotion
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Promotions</CardTitle>
-            <Tag className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Active Promotions</CardTitle>
+            <PlusCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalPromotions}</div>
+            <div className="text-2xl font-bold">{activePromotions}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.livePromotions} live, {stats.pendingPromotions} pending
+              {activePromotions === 0 ? "Create your first promotion!" : "Promotions currently active"}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Views</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.views}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.views > 0 ? `+${Math.floor(stats.views * 0.1)} from last week` : "No views yet"}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Engagement Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">Analytics</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.views > 0 ? `${((stats.clicks / stats.views) * 100).toFixed(1)}%` : "0%"}
-            </div>
-            <p className="text-xs text-muted-foreground">{stats.clicks} total clicks</p>
+            <div className="text-2xl font-bold">View Stats</div>
+            <p className="text-xs text-muted-foreground">
+              <Link href="/dashboard/analytics" className="text-[#6A0DAD] hover:underline">
+                Check your promotion performance
+              </Link>
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Plan Status</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Settings</CardTitle>
+            <Settings className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold capitalize">{userProfile?.plan || "Free"}</div>
+            <div className="text-2xl font-bold">Profile</div>
             <p className="text-xs text-muted-foreground">
-              {userProfile?.promotionsUsed || 0} of {userProfile?.promotionsLimit || 2} used
+              <Link href="/dashboard/settings" className="text-[#6A0DAD] hover:underline">
+                Update your business information
+              </Link>
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="col-span-full">
+      <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
+        <Card className="col-span-1">
           <CardHeader>
-            <CardTitle>Recent Promotions</CardTitle>
-            <CardDescription>Manage your active and pending promotions</CardDescription>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Your recent business activity</CardDescription>
           </CardHeader>
           <CardContent>
-            {promotions.length > 0 ? (
-              <div className="space-y-4">
-                {promotions.slice(0, 3).map((promotion) => (
-                  <div key={promotion.id} className="flex items-center p-4 border rounded-lg">
-                    {promotion.imageURL ? (
-                      <img
-                        src={promotion.imageURL || "/placeholder.svg"}
-                        alt={promotion.title}
-                        className="w-12 h-12 rounded-md object-cover mr-4"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 bg-gray-200 rounded-md mr-4 flex items-center justify-center">
-                        <Tag className="h-6 w-6 text-gray-400" />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <h3 className="font-medium">{promotion.title}</h3>
-                      <p className="text-sm text-gray-500 truncate">{promotion.description}</p>
-                    </div>
-                    <div className="ml-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          promotion.status === "live"
-                            ? "bg-green-100 text-green-800"
-                            : promotion.status === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {promotion.status === "live" ? "Live" : promotion.status === "pending" ? "Pending" : "Expired"}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-
-                <div className="flex justify-center">
-                  <Button asChild variant="outline">
-                    <Link href="/dashboard/promotions">View all promotions</Link>
-                  </Button>
+            <div className="space-y-4">
+              <div className="flex items-center">
+                <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                <div className="ml-4 space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    {activePromotions === 0
+                      ? "No recent activity"
+                      : `You have ${activePromotions} active promotion${activePromotions === 1 ? "" : "s"}`}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {activePromotions === 0
+                      ? "Create your first promotion to get started"
+                      : "Check your dashboard for details"}
+                  </p>
                 </div>
               </div>
-            ) : (
-              <div className="text-center py-8">
-                <Tag className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No promotions yet</h3>
-                <p className="text-gray-500 mb-4">Create your first promotion to attract more customers</p>
-                <Button asChild className="bg-[#6A0DAD] hover:bg-[#5a0b93]">
-                  <Link href="/dashboard/promotions/new">Create New Promotion</Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Common tasks you can perform</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col space-y-2">
+              <Link href="/dashboard/promotions/new">
+                <Button variant="outline" className="w-full justify-start">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Create New Promotion
                 </Button>
-              </div>
-            )}
+              </Link>
+              <Link href="/dashboard/analytics">
+                <Button variant="outline" className="w-full justify-start">
+                  <TrendingUp className="mr-2 h-4 w-4" />
+                  View Analytics
+                </Button>
+              </Link>
+              <Link href="/dashboard/settings">
+                <Button variant="outline" className="w-full justify-start">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Update Settings
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>

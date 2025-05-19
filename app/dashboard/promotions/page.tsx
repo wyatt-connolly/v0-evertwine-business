@@ -106,7 +106,7 @@ export default function PromotionsPage() {
 
   const canCreatePromotion = () => {
     if (!userProfile) return false
-    return (userProfile.promotionsUsed || 0) < (userProfile.promotionsLimit || 2)
+    return (userProfile.promotions_used || 0) < (userProfile.promotions_limit || 2)
   }
 
   if (error) {
@@ -156,7 +156,7 @@ export default function PromotionsPage() {
         <div className="flex items-center gap-2">
           <div className="bg-gray-100 px-3 py-1 rounded-full text-sm">
             Plan: <span className="font-medium capitalize">{userProfile?.plan || "Free"}</span> (
-            {userProfile?.promotionsUsed || 0} of {userProfile?.promotionsLimit || 2} used)
+            {userProfile?.promotions_used || 0} of {userProfile?.promotions_limit || 2} used)
           </div>
           <TooltipProvider>
             <Tooltip>
@@ -166,6 +166,7 @@ export default function PromotionsPage() {
                     onClick={() => router.push("/dashboard/promotions/new")}
                     className="bg-[#6A0DAD] hover:bg-[#5a0b93]"
                     disabled={!canCreatePromotion()}
+                    data-walkthrough="create-promotion"
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Create New Promotion
@@ -278,6 +279,7 @@ export default function PromotionsPage() {
               onClick={() => router.push("/dashboard/promotions/new")}
               className="bg-[#6A0DAD] hover:bg-[#5a0b93]"
               disabled={!canCreatePromotion()}
+              data-walkthrough="create-promotion"
             >
               <Plus className="mr-2 h-4 w-4" />
               Create New Promotion

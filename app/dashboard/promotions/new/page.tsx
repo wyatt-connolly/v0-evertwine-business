@@ -40,6 +40,35 @@ export default function NewPromotionPage() {
     const fetchUserData = async () => {
       if (user) {
         try {
+          // First try the business_users collection (new)
+          try {
+            const docRef = doc(db, "business_users", user.uid)
+            const docSnap = await getDoc(docRef)
+
+            if (docSnap.exists()) {
+              const data = docSnap.data()
+              setAddress(data.address || "")
+
+              // Check if user can create promotions
+              const promotionsUsed = data.promotions_used || 0
+              const promotionsLimit = data.promotions_limit || 2
+
+              if (promotionsUsed >= promotionsLimit) {
+                toast({
+                  variant: "destructive",
+                  title: "Promotion limit reached",
+                  description: "Upgrade to Premium to create more promotions.",
+                })
+                router.push("/dashboard/promotions")
+              }
+              setIsLoadingData(false)
+              return
+            }
+          } catch (error) {
+            console.log("Could not fetch from business_users, trying businesses collection")
+          }
+
+          // Fall back to the businesses collection (old)
           const docRef = doc(db, "businesses", user.uid)
           const docSnap = await getDoc(docRef)
 
@@ -48,8 +77,8 @@ export default function NewPromotionPage() {
             setAddress(data.address || "")
 
             // Check if user can create promotions
-            const promotionsUsed = data.promotionsUsed || 0
-            const promotionsLimit = data.promotionsLimit || 2
+            const promotionsUsed = data.promotions_used || data.promotionsUsed || 0
+            const promotionsLimit = data.promotions_limit || data.promotionsLimit || 2
 
             if (promotionsUsed >= promotionsLimit) {
               toast({
@@ -62,6 +91,8 @@ export default function NewPromotionPage() {
           }
         } catch (error) {
           console.error("Error fetching user data:", error)
+          // Don't show an error toast, just log it
+          // We'll continue with default values
         } finally {
           setIsLoadingData(false)
         }
@@ -135,7 +166,7 @@ export default function NewPromotionPage() {
         ...(expirationDate && { expirationDate: expirationDate.toISOString() }),
         ...(imageURL && { imageURL }),
         status: "pending",
-        createdAt: new Date().toISOString(),
+        created_at: new Date().toISOString(),
         views: 0,
         clicks: 0,
       }
@@ -143,15 +174,41 @@ export default function NewPromotionPage() {
       // Add promotion to Firestore
       await addDoc(collection(db, "promotions"), promotionData)
 
-      // Update business promotions count
-      const businessRef = doc(db, "businesses", user.uid)
-      const businessDoc = await getDoc(businessRef)
+      // Try to update the user's promotion count
+      let updated = false
 
-      if (businessDoc.exists()) {
-        const businessData = businessDoc.data()
-        await updateDoc(businessRef, {
-          promotionsUsed: (businessData.promotionsUsed || 0) + 1,
-        })
+      // First try business_users collection
+      try {
+        const businessRef = doc(db, "business_users", user.uid)
+        const businessDoc = await getDoc(businessRef)
+
+        if (businessDoc.exists()) {
+          const businessData = businessDoc.data()
+          await updateDoc(businessRef, {
+            promotions_used: (businessData.promotions_used || 0) + 1,
+          })
+          updated = true
+        }
+      } catch (error) {
+        console.log("Could not update business_users, trying businesses collection")
+      }
+
+      // If that failed, try the businesses collection
+      if (!updated) {
+        try {
+          const businessRef = doc(db, "businesses", user.uid)
+          const businessDoc = await getDoc(businessRef)
+
+          if (businessDoc.exists()) {
+            const businessData = businessDoc.data()
+            await updateDoc(businessRef, {
+              promotions_used: (businessData.promotions_used || businessData.promotionsUsed || 0) + 1,
+            })
+          }
+        } catch (error) {
+          console.error("Could not update promotion count:", error)
+          // Continue anyway, the promotion was created
+        }
       }
 
       toast({

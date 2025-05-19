@@ -50,8 +50,8 @@ export default function SignupPage() {
       try {
         const user = await handleAuthRedirect()
         if (user) {
-          // If we got a user from the redirect, navigate to dashboard or onboarding
-          router.push("/onboarding/business-info")
+          // If we got a user from the redirect, navigate to dashboard
+          router.push("/dashboard")
         }
       } catch (error) {
         console.error("Error handling redirect result:", error)
@@ -80,7 +80,6 @@ export default function SignupPage() {
       await signUp(email, password, {
         name,
         phone,
-        onboardingComplete: false,
       })
 
       toast({
@@ -88,7 +87,7 @@ export default function SignupPage() {
         description: "Welcome to Evertwine Business Portal!",
       })
 
-      router.push("/onboarding/business-info")
+      router.push("/dashboard") // Redirect to dashboard instead of onboarding
     } catch (error) {
       console.error("Signup error:", error)
 

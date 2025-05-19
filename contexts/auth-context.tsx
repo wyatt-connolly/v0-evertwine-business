@@ -93,7 +93,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         promotionsUsed: 0,
         promotionsLimit: 2,
         authProvider: "google",
-        onboardingComplete: false,
       })
     }
   }
@@ -119,7 +118,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         promotionsUsed: 0,
         promotionsLimit: 2,
         authProvider: "facebook",
-        onboardingComplete: false,
       })
     }
   }
