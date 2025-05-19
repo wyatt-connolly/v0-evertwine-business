@@ -26,6 +26,7 @@ export default function LoginPage() {
 
   // Check if we're in a preview environment
   useEffect(() => {
+    // Only set preview mode if we're in a known preview environment
     setIsPreview(isPreviewEnvironment())
   }, [])
 
@@ -121,9 +122,10 @@ export default function LoginPage() {
           {isPreview && (
             <Alert className="mb-4">
               <Info className="h-4 w-4" />
-              <AlertTitle>Preview Environment Detected</AlertTitle>
+              <AlertTitle>Development Environment Detected</AlertTitle>
               <AlertDescription>
-                Social login is disabled in preview environments. Please use email/password login instead.
+                Social login may not work in this development environment. If you encounter errors, please use
+                email/password login instead.
               </AlertDescription>
             </Alert>
           )}
