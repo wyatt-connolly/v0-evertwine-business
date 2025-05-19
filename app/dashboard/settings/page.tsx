@@ -1,6 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import type React from "react"
+
+import { useState, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,53 +14,245 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Upload, X } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
+import { doc, updateDoc } from "firebase/firestore"
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
+import { db, storage, auth } from "@/lib/firebase"
+import { sendPasswordResetEmail } from "firebase/auth"
 
 export default function SettingsPage() {
   const { user, userProfile } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+  const router = useRouter()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [businessName, setBusinessName] = useState(userProfile?.businessName || "")
-  const [email, setEmail] = useState(user?.email || "")
-  const [phone, setPhone] = useState(userProfile?.phone || "")
-  const [address, setAddress] = useState(userProfile?.address || "")
-  const [bio, setBio] = useState(userProfile?.bio || "")
-  const [photoPreview, setPhotoPreview] = useState(userProfile?.photoURL || null)
+  const [businessName, setBusinessName] = useState("")
+  const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
+  const [address, setAddress] = useState("")
+  const [bio, setBio] = useState("")
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+
+  // Notification settings
+  const [promotionUpdates, setPromotionUpdates] = useState(true)
+  const [customerInteractions, setCustomerInteractions] = useState(true)
+  const [marketingUpdates, setMarketingUpdates] = useState(false)
+  const [accountAlerts, setAccountAlerts] = useState(true)
+
+  useEffect(() => {
+    if (userProfile) {
+      // Handle both camelCase and snake_case field names
+      setBusinessName(userProfile.business_name || userProfile.businessName || "")
+      setEmail(user?.email || "")
+      setPhone(userProfile.phone || "")
+      setAddress(userProfile.address || "")
+      setBio(userProfile.bio || "")
+      setPhotoPreview(userProfile.photo_url || userProfile.photoURL || null)
+
+      // Set notification preferences
+      setPromotionUpdates(userProfile.notification_promotion_updates !== false)
+      setCustomerInteractions(userProfile.notification_customer_interactions !== false)
+      setMarketingUpdates(userProfile.notification_marketing_updates === true)
+      setAccountAlerts(userProfile.notification_account_alerts !== false)
+    }
+  }, [userProfile, user])
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setPhotoFile(file)
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          setPhotoPreview(e.target.result as string)
+        }
+      }
+      reader.readAsDataURL(file)
+    }
+  }
 
   const handleSaveProfile = async () => {
-    setIsLoading(true)
-    // Simulate API call
-    setTimeout(() => {
+    if (!user) {
       toast({
-        title: "Profile updated",
-        description: "Your business profile has been updated successfully.",
+        variant: "destructive",
+        title: "Authentication error",
+        description: "You must be logged in to update your profile.",
       })
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      let photoURL = photoPreview
+
+      // Upload new photo if one was selected
+      if (photoFile) {
+        try {
+          // Use a public folder for business photos to avoid permission issues
+          // Also sanitize the filename to remove special characters
+          const sanitizedFileName = photoFile.name.replace(/[^a-zA-Z0-9.]/g, "_")
+          const storageRef = ref(storage, `public_business_photos/${user.uid}/${Date.now()}_${sanitizedFileName}`)
+          await uploadBytes(storageRef, photoFile)
+          photoURL = await getDownloadURL(storageRef)
+        } catch (error: any) {
+          console.error("Error uploading image:", error)
+          toast({
+            variant: "destructive",
+            title: "Image upload failed",
+            description: "Your profile will be updated without the new image. You can try again later.",
+          })
+          // Continue without updating the photo
+          photoURL = userProfile?.photo_url || userProfile?.photoURL || null
+        }
+      }
+
+      const profileData = {
+        business_name: businessName,
+        phone: phone,
+        address: address,
+        bio: bio,
+        updated_at: new Date().toISOString(),
+      }
+
+      // Only add photo_url if we have a valid URL
+      if (photoURL) {
+        profileData.photo_url = photoURL
+      }
+
+      // Try to update in business_users collection first
+      try {
+        const userRef = doc(db, "business_users", user.uid)
+        await updateDoc(userRef, profileData)
+        toast({
+          title: "Profile updated",
+          description: "Your business profile has been updated successfully.",
+        })
+        return
+      } catch (error) {
+        console.error("Could not update business_users, trying businesses collection")
+      }
+
+      // Fall back to businesses collection
+      try {
+        const userRef = doc(db, "businesses", user.uid)
+        await updateDoc(userRef, profileData)
+        toast({
+          title: "Profile updated",
+          description: "Your business profile has been updated successfully.",
+        })
+      } catch (error: any) {
+        console.error("Error updating profile:", error)
+        toast({
+          variant: "destructive",
+          title: "Failed to update profile",
+          description: error.message || "Please try again.",
+        })
+      }
+    } catch (error: any) {
+      console.error("Error updating profile:", error)
+      toast({
+        variant: "destructive",
+        title: "Failed to update profile",
+        description: error.message || "Please try again.",
+      })
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   const handleSaveNotifications = async () => {
-    setIsLoading(true)
-    // Simulate API call
-    setTimeout(() => {
+    if (!user) {
       toast({
-        title: "Notification preferences updated",
-        description: "Your notification settings have been saved.",
+        variant: "destructive",
+        title: "Authentication error",
+        description: "You must be logged in to update your notification preferences.",
       })
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const notificationData = {
+        notification_promotion_updates: promotionUpdates,
+        notification_customer_interactions: customerInteractions,
+        notification_marketing_updates: marketingUpdates,
+        notification_account_alerts: accountAlerts,
+        updated_at: new Date().toISOString(),
+      }
+
+      // Try to update in business_users collection first
+      try {
+        const userRef = doc(db, "business_users", user.uid)
+        await updateDoc(userRef, notificationData)
+        toast({
+          title: "Notification preferences updated",
+          description: "Your notification settings have been saved.",
+        })
+        return
+      } catch (error) {
+        console.error("Could not update business_users, trying businesses collection")
+      }
+
+      // Fall back to businesses collection
+      try {
+        const userRef = doc(db, "businesses", user.uid)
+        await updateDoc(userRef, notificationData)
+        toast({
+          title: "Notification preferences updated",
+          description: "Your notification settings have been saved.",
+        })
+      } catch (error: any) {
+        console.error("Error updating notification preferences:", error)
+        toast({
+          variant: "destructive",
+          title: "Failed to update notification preferences",
+          description: error.message || "Please try again.",
+        })
+      }
+    } catch (error: any) {
+      console.error("Error updating notification preferences:", error)
+      toast({
+        variant: "destructive",
+        title: "Failed to update notification preferences",
+        description: error.message || "Please try again.",
+      })
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   const handleChangePassword = async () => {
+    if (!user || !user.email) {
+      toast({
+        variant: "destructive",
+        title: "Authentication error",
+        description: "You must be logged in with an email to reset your password.",
+      })
+      return
+    }
+
     setIsLoading(true)
-    // Simulate API call
-    setTimeout(() => {
+
+    try {
+      await sendPasswordResetEmail(auth, user.email)
       toast({
         title: "Password reset email sent",
         description: "Check your email for instructions to reset your password.",
       })
+    } catch (error: any) {
+      console.error("Error sending password reset email:", error)
+      toast({
+        variant: "destructive",
+        title: "Failed to send password reset email",
+        description: error.message || "Please try again.",
+      })
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -94,18 +289,35 @@ export default function SettingsPage() {
                       />
                       <button
                         type="button"
-                        onClick={() => setPhotoPreview(null)}
+                        onClick={() => {
+                          setPhotoPreview(null)
+                          setPhotoFile(null)
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = ""
+                          }
+                        }}
                         className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
                       >
                         <X className="h-4 w-4" />
                       </button>
                     </div>
                   ) : (
-                    <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[#6A0DAD]">
+                    <div
+                      className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[#6A0DAD]"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
                       <Upload className="h-6 w-6 text-gray-400" />
                       <span className="text-xs text-gray-500 mt-1">Upload</span>
                     </div>
                   )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    id="photo"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageChange}
+                  />
                   <div className="text-sm text-gray-500">Upload a square image for best results</div>
                 </div>
               </div>
@@ -117,7 +329,10 @@ export default function SettingsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled />
+                <p className="text-xs text-muted-foreground">
+                  Email cannot be changed. Contact support for assistance.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -179,7 +394,7 @@ export default function SettingsPage() {
                       Receive notifications when your promotions are approved or rejected
                     </p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch checked={promotionUpdates} onCheckedChange={setPromotionUpdates} />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -189,7 +404,7 @@ export default function SettingsPage() {
                       Get notified when customers interact with your promotions
                     </p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch checked={customerInteractions} onCheckedChange={setCustomerInteractions} />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -199,7 +414,7 @@ export default function SettingsPage() {
                       Receive tips and best practices for promoting your business
                     </p>
                   </div>
-                  <Switch />
+                  <Switch checked={marketingUpdates} onCheckedChange={setMarketingUpdates} />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -209,7 +424,7 @@ export default function SettingsPage() {
                       Important notifications about your account and billing
                     </p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch checked={accountAlerts} onCheckedChange={setAccountAlerts} />
                 </div>
               </div>
             </CardContent>

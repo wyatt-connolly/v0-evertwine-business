@@ -100,7 +100,7 @@ export default function NewPromotionPage() {
     }
 
     fetchUserData()
-  }, [user, router])
+  }, [user, router, toast])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -152,19 +152,33 @@ export default function NewPromotionPage() {
       let imageURL = ""
 
       if (imageFile) {
-        const storageRef = ref(storage, `promotions/${user.uid}/${Date.now()}_${imageFile.name}`)
-        await uploadBytes(storageRef, imageFile)
-        imageURL = await getDownloadURL(storageRef)
+        try {
+          // Use a public folder for promotions to avoid permission issues
+          const storageRef = ref(
+            storage,
+            `public_promotions/${user.uid}/${Date.now()}_${imageFile.name.replace(/[^a-zA-Z0-9.]/g, "_")}`,
+          )
+          await uploadBytes(storageRef, imageFile)
+          imageURL = await getDownloadURL(storageRef)
+        } catch (uploadError: any) {
+          console.error("Error uploading image:", uploadError)
+          toast({
+            variant: "destructive",
+            title: "Image upload failed",
+            description: "Your promotion will be created without an image. You can edit it later to add an image.",
+          })
+          // Continue without the image
+        }
       }
 
       const promotionData = {
-        businessId: user.uid,
+        business_id: user.uid,
         title,
         category,
         description,
         address,
-        ...(expirationDate && { expirationDate: expirationDate.toISOString() }),
-        ...(imageURL && { imageURL }),
+        ...(expirationDate && { expiration_date: expirationDate.toISOString() }),
+        ...(imageURL && { image_url: imageURL }),
         status: "pending",
         created_at: new Date().toISOString(),
         views: 0,
