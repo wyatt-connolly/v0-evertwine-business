@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signIn, useAuthState } from "@/lib/auth-utils"
@@ -18,7 +18,14 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-  const { loading, firebaseInitialized } = useAuthState()
+  const { user, loading, firebaseInitialized } = useAuthState()
+
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (user && !loading) {
+      router.push("/dashboard")
+    }
+  }, [user, loading, router])
 
   // If Firebase is not initialized, show the error component
   if (!firebaseInitialized) {
@@ -41,6 +48,15 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // If already logged in and loading, show loading spinner
+  if (loading && user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-[#6A0DAD]" />
+      </div>
+    )
   }
 
   return (
