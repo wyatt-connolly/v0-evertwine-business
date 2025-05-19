@@ -3,7 +3,14 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signIn, signInWithGoogle, signInWithFacebook, useAuthState, isPreviewEnvironment } from "@/lib/auth-utils"
+import {
+  signIn,
+  signInWithGoogle,
+  signInWithFacebook,
+  useAuthState,
+  isPreviewEnvironment,
+  handleAuthRedirect,
+} from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -36,6 +43,26 @@ export default function LoginPage() {
       router.push("/dashboard")
     }
   }, [user, loading, router])
+
+  // Handle redirect result from social login
+  useEffect(() => {
+    const checkRedirectResult = async () => {
+      try {
+        const user = await handleAuthRedirect()
+        if (user) {
+          // If we got a user from the redirect, navigate to dashboard
+          router.push("/dashboard")
+        }
+      } catch (error) {
+        console.error("Error handling redirect result:", error)
+        setError(error.message || "Failed to complete social sign-in. Please try again.")
+      }
+    }
+
+    if (!loading && !user) {
+      checkRedirectResult()
+    }
+  }, [loading])
 
   // If Firebase is not initialized, show the error component
   if (!firebaseInitialized) {

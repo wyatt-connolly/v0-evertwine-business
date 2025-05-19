@@ -3,7 +3,14 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signUp, signInWithGoogle, signInWithFacebook, useAuthState, isPreviewEnvironment } from "@/lib/auth-utils"
+import {
+  signUp,
+  signInWithGoogle,
+  signInWithFacebook,
+  useAuthState,
+  isPreviewEnvironment,
+  handleAuthRedirect,
+} from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,7 +24,7 @@ import FirebaseError from "@/components/firebase-error"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function SignupPage() {
-  const { firebaseInitialized, firebaseInitError } = useAuthState()
+  const { firebaseInitialized, firebaseInitError, user, loading } = useAuthState()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
@@ -36,6 +43,26 @@ export default function SignupPage() {
     // Only set preview mode if we're in a known preview environment
     setIsPreview(isPreviewEnvironment())
   }, [])
+
+  // Handle redirect result from social login
+  useEffect(() => {
+    const checkRedirectResult = async () => {
+      try {
+        const user = await handleAuthRedirect()
+        if (user) {
+          // If we got a user from the redirect, navigate to dashboard or onboarding
+          router.push("/onboarding/business-info")
+        }
+      } catch (error) {
+        console.error("Error handling redirect result:", error)
+        setError(error.message || "Failed to complete social sign-in. Please try again.")
+      }
+    }
+
+    if (!loading && !user) {
+      checkRedirectResult()
+    }
+  }, [loading, router, user])
 
   // If Firebase is not initialized, show the error component
   if (!firebaseInitialized) {
