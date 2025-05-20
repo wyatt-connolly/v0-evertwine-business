@@ -175,13 +175,7 @@ export default function DashboardLayout({ children }) {
         </div>
 
         <main className="flex-1">
-          <div className="py-6 px-4 sm:px-6 lg:px-8">
-            <div className="text-2xl font-bold capitalize">{userProfile?.plan || "Free"}</div>
-            <p className="text-xs text-muted-foreground">
-              {userProfile?.promotions_used || 0} of {userProfile?.promotions_limit || 2} used
-            </p>
-            {children}
-          </div>
+          <div className="py-6 px-4 sm:px-6 lg:px-8">{children}</div>
         </main>
       </div>
     </div>

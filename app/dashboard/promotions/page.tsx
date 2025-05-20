@@ -16,8 +16,8 @@ import {
   ShoppingBag,
   Music,
   Coffee,
+  AlertCircle,
 } from "lucide-react"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +32,7 @@ import {
 import { useToast } from "@/components/ui/use-toast"
 import { collection, query, where, getDocs, doc, deleteDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 // Category icon mapping
 const categoryIcons: Record<string, any> = {
@@ -41,6 +42,8 @@ const categoryIcons: Record<string, any> = {
   Entertainment: Music,
   Other: Coffee,
 }
+
+const MAX_PROMOTIONS = 2
 
 export default function PromotionsPage() {
   const { user, userProfile } = useAuth()
@@ -59,7 +62,8 @@ export default function PromotionsPage() {
 
     setLoading(true)
     try {
-      const promotionsQuery = query(collection(db, "promotions"), where("businessId", "==", user.uid))
+      // Query using business_id field which is used when creating promotions
+      const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
       const promotionsSnapshot = await getDocs(promotionsQuery)
       const promotionsData = promotionsSnapshot.docs.map((doc) => ({
         id: doc.id,
@@ -104,11 +108,6 @@ export default function PromotionsPage() {
     }
   }
 
-  const canCreatePromotion = () => {
-    if (!userProfile) return false
-    return (userProfile.promotions_used || 0) < (userProfile.promotions_limit || 2)
-  }
-
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
@@ -146,6 +145,8 @@ export default function PromotionsPage() {
     )
   }
 
+  const reachedLimit = promotions.length >= MAX_PROMOTIONS
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -154,33 +155,33 @@ export default function PromotionsPage() {
           <p className="text-muted-foreground">Create and manage your business promotions</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="bg-gray-100 px-3 py-1 rounded-full text-sm">
-            Plan: <span className="font-medium capitalize">{userProfile?.plan || "Free"}</span> (
-            {userProfile?.promotions_used || 0} of {userProfile?.promotions_limit || 2} used)
-          </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div>
-                  <Button
-                    onClick={() => router.push("/dashboard/promotions/new")}
-                    className="bg-[#6A0DAD] hover:bg-[#5a0b93]"
-                    disabled={!canCreatePromotion()}
-                    data-walkthrough="create-promotion"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create New Promotion
-                  </Button>
-                </div>
-              </TooltipTrigger>
-              {!canCreatePromotion() && (
-                <TooltipContent>
-                  <p>Upgrade to Premium to create more promotions</p>
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            onClick={() => router.push("/dashboard/promotions/new")}
+            className="bg-[#6A0DAD] hover:bg-[#5a0b93]"
+            data-walkthrough="create-promotion"
+            disabled={reachedLimit}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create New Promotion
+          </Button>
         </div>
+      </div>
+
+      <div className="flex justify-between items-center bg-blue-50 p-4 rounded-lg">
+        <div className="flex items-center">
+          <span className="font-medium">Promotions: </span>
+          <span className="ml-2">
+            {promotions.length} of {MAX_PROMOTIONS} used
+          </span>
+        </div>
+        {reachedLimit && (
+          <Alert variant="warning" className="p-2 border-yellow-200 bg-yellow-50">
+            <AlertCircle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-600 text-sm">
+              You've reached your limit of {MAX_PROMOTIONS} promotions
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
       {promotions.length > 0 ? (
@@ -190,9 +191,9 @@ export default function PromotionsPage() {
             return (
               <Card key={promotion.id} className="overflow-hidden">
                 <div className="aspect-video w-full relative">
-                  {promotion.imageURL ? (
+                  {promotion.image_url ? (
                     <img
-                      src={promotion.imageURL || "/placeholder.svg"}
+                      src={promotion.image_url || "/placeholder.svg"}
                       alt={promotion.title}
                       className="w-full h-full object-cover"
                     />
@@ -204,14 +205,10 @@ export default function PromotionsPage() {
                   <div className="absolute top-2 right-2">
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        promotion.status === "live"
-                          ? "bg-green-100 text-green-800"
-                          : promotion.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-gray-100 text-gray-800"
+                        promotion.status === "live" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
                       }`}
                     >
-                      {promotion.status === "live" ? "Live" : promotion.status === "pending" ? "Pending" : "Expired"}
+                      {promotion.status === "live" ? "Live" : "Expired"}
                     </span>
                   </div>
                 </div>
@@ -225,8 +222,9 @@ export default function PromotionsPage() {
                 <CardContent className="p-4">
                   <p className="text-sm text-gray-500 line-clamp-2 mb-4">{promotion.description}</p>
                   <div className="flex justify-between items-center">
-                    <div className="text-sm text-gray-500">
-                      {promotion.address ? <span>{promotion.address}</span> : <span>No address</span>}
+                    <div className="text-sm text-gray-500 flex items-center gap-2">
+                      <span>👁️ {promotion.views || 0}</span>
+                      <span>👆 {promotion.clicks || 0}</span>
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -278,7 +276,6 @@ export default function PromotionsPage() {
             <Button
               onClick={() => router.push("/dashboard/promotions/new")}
               className="bg-[#6A0DAD] hover:bg-[#5a0b93]"
-              disabled={!canCreatePromotion()}
               data-walkthrough="create-promotion"
             >
               <Plus className="mr-2 h-4 w-4" />

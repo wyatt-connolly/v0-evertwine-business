@@ -49,7 +49,7 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
             const data = docSnap.data()
 
             // Check if the promotion belongs to the current user
-            if (data.businessId !== user.uid) {
+            if (data.business_id !== user.uid) {
               toast({
                 variant: "destructive",
                 title: "Access denied",
@@ -63,15 +63,15 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
             setCategory(data.category || "")
             setDescription(data.description || "")
             setAddress(data.address || "")
-            setStatus(data.status || "pending")
+            setStatus(data.status || "live")
 
-            if (data.expirationDate) {
-              setExpirationDate(new Date(data.expirationDate))
+            if (data.expiration_date) {
+              setExpirationDate(new Date(data.expiration_date))
             }
 
-            if (data.imageURL) {
-              setCurrentImageURL(data.imageURL)
-              setImagePreview(data.imageURL)
+            if (data.image_url) {
+              setCurrentImageURL(data.image_url)
+              setImagePreview(data.image_url)
             }
           } else {
             toast({
@@ -148,7 +148,10 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
       let imageURL = currentImageURL
 
       if (imageFile) {
-        const storageRef = ref(storage, `promotions/${user.uid}/${Date.now()}_${imageFile.name}`)
+        const storageRef = ref(
+          storage,
+          `promotions/${user.uid}/${Date.now()}_${imageFile.name.replace(/[^a-zA-Z0-9.]/g, "_")}`,
+        )
         await uploadBytes(storageRef, imageFile)
         imageURL = await getDownloadURL(storageRef)
       }
@@ -158,11 +161,11 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
         category,
         description,
         address,
-        ...(expirationDate && { expirationDate: expirationDate.toISOString() }),
-        ...(imageURL && { imageURL }),
-        updatedAt: new Date().toISOString(),
-        // Reset status to pending if it was live and significant changes were made
-        ...(status === "live" && { status: "pending" }),
+        ...(expirationDate && { expiration_date: expirationDate.toISOString() }),
+        ...(imageURL && { image_url: imageURL }),
+        updated_at: new Date().toISOString(),
+        // Always keep status as live
+        status: "live",
       }
 
       // Update promotion in Firestore
@@ -170,10 +173,7 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
 
       toast({
         title: "Promotion updated",
-        description:
-          status === "live"
-            ? "Your promotion has been updated and will be reviewed again."
-            : "Your promotion has been updated.",
+        description: "Your promotion has been updated successfully.",
       })
 
       router.push("/dashboard/promotions")
@@ -392,26 +392,14 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
               </div>
 
               <div className="mt-6 bg-blue-50 p-4 rounded-lg">
-                <p className="text-blue-700 text-sm">
-                  {status === "live"
-                    ? "Making significant changes will require re-approval of your promotion."
-                    : "Your promotion will be reviewed before being published."}
-                </p>
+                <p className="text-blue-700 text-sm">Your changes will be applied immediately.</p>
               </div>
 
               <div className="mt-4">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">Current Status:</span>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      status === "live"
-                        ? "bg-green-100 text-green-800"
-                        : status === "pending"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {status === "live" ? "Live" : status === "pending" ? "Pending" : "Expired"}
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Live
                   </span>
                 </div>
               </div>

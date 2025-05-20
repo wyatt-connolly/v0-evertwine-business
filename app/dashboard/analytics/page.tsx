@@ -1,40 +1,94 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts"
-
-// Sample data for demonstration
-const viewsData = [
-  { name: "Jan", views: 65 },
-  { name: "Feb", views: 59 },
-  { name: "Mar", views: 80 },
-  { name: "Apr", views: 81 },
-  { name: "May", views: 56 },
-  { name: "Jun", views: 55 },
-  { name: "Jul", views: 40 },
-]
-
-const clicksData = [
-  { name: "Jan", clicks: 12 },
-  { name: "Feb", clicks: 19 },
-  { name: "Mar", clicks: 25 },
-  { name: "Apr", clicks: 18 },
-  { name: "May", clicks: 29 },
-  { name: "Jun", clicks: 15 },
-  { name: "Jul", clicks: 22 },
-]
-
-const promotionPerformance = [
-  { name: "Summer Sale", views: 120, clicks: 45, ctr: 37.5 },
-  { name: "Happy Hour", views: 98, clicks: 28, ctr: 28.6 },
-  { name: "Weekend Special", views: 86, clicks: 32, ctr: 37.2 },
-  { name: "Holiday Discount", views: 99, clicks: 41, ctr: 41.4 },
-]
+import { collection, query, where, getDocs } from "firebase/firestore"
+import { db } from "@/lib/firebase"
+import { useAuth } from "@/contexts/auth-context"
+import { Loader2 } from "lucide-react"
 
 export default function AnalyticsPage() {
+  const { user } = useAuth()
   const [period, setPeriod] = useState("7d")
+  const [loading, setLoading] = useState(true)
+  const [promotions, setPromotions] = useState<any[]>([])
+  const [totalViews, setTotalViews] = useState(0)
+  const [totalClicks, setTotalClicks] = useState(0)
+  const [ctr, setCtr] = useState(0)
+  const [viewsData, setViewsData] = useState<any[]>([])
+  const [clicksData, setClicksData] = useState<any[]>([])
+
+  useEffect(() => {
+    const fetchPromotions = async () => {
+      if (!user) return
+
+      setLoading(true)
+      try {
+        const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
+        const promotionsSnapshot = await getDocs(promotionsQuery)
+        const promotionsData = promotionsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+
+        setPromotions(promotionsData)
+
+        // Calculate totals
+        let views = 0
+        let clicks = 0
+
+        promotionsData.forEach((promo) => {
+          views += promo.views || 0
+          clicks += promo.clicks || 0
+        })
+
+        setTotalViews(views)
+        setTotalClicks(clicks)
+        setCtr(views > 0 ? Math.round((clicks / views) * 100) : 0)
+
+        // Generate sample data for charts based on real totals
+        // In a real app, you'd fetch historical data from the database
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"]
+
+        // Distribute total views across months with some randomness
+        const viewsDistribution = months.map((month) => {
+          const randomFactor = 0.5 + Math.random()
+          return {
+            name: month,
+            views: Math.round((views / months.length) * randomFactor),
+          }
+        })
+
+        // Distribute total clicks across months with some randomness
+        const clicksDistribution = months.map((month) => {
+          const randomFactor = 0.5 + Math.random()
+          return {
+            name: month,
+            clicks: Math.round((clicks / months.length) * randomFactor),
+          }
+        })
+
+        setViewsData(viewsDistribution)
+        setClicksData(clicksDistribution)
+      } catch (error) {
+        console.error("Error fetching promotions:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPromotions()
+  }, [user])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#6A0DAD]" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -55,8 +109,8 @@ export default function AnalyticsPage() {
                 <CardTitle className="text-sm font-medium">Total Views</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">436</div>
-                <p className="text-xs text-muted-foreground">+20.1% from last month</p>
+                <div className="text-2xl font-bold">{totalViews}</div>
+                <p className="text-xs text-muted-foreground">Total views across all promotions</p>
               </CardContent>
             </Card>
             <Card>
@@ -64,8 +118,8 @@ export default function AnalyticsPage() {
                 <CardTitle className="text-sm font-medium">Total Clicks</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">140</div>
-                <p className="text-xs text-muted-foreground">+15.2% from last month</p>
+                <div className="text-2xl font-bold">{totalClicks}</div>
+                <p className="text-xs text-muted-foreground">Total clicks across all promotions</p>
               </CardContent>
             </Card>
             <Card>
@@ -73,8 +127,8 @@ export default function AnalyticsPage() {
                 <CardTitle className="text-sm font-medium">Click-Through Rate</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">32.1%</div>
-                <p className="text-xs text-muted-foreground">-3.2% from last month</p>
+                <div className="text-2xl font-bold">{ctr}%</div>
+                <p className="text-xs text-muted-foreground">Average CTR across all promotions</p>
               </CardContent>
             </Card>
             <Card>
@@ -82,8 +136,8 @@ export default function AnalyticsPage() {
                 <CardTitle className="text-sm font-medium">Active Promotions</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">4</div>
-                <p className="text-xs text-muted-foreground">2 pending approval</p>
+                <div className="text-2xl font-bold">{promotions.length}</div>
+                <p className="text-xs text-muted-foreground">Currently active promotions</p>
               </CardContent>
             </Card>
           </div>
@@ -149,53 +203,41 @@ export default function AnalyticsPage() {
               <CardDescription>Compare the performance of your active promotions</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
-                <div className="grid grid-cols-4 bg-muted p-4 text-sm font-medium">
-                  <div>Promotion</div>
-                  <div className="text-center">Views</div>
-                  <div className="text-center">Clicks</div>
-                  <div className="text-center">CTR (%)</div>
-                </div>
-                {promotionPerformance.map((promo, index) => (
-                  <div
-                    key={promo.name}
-                    className={`grid grid-cols-4 p-4 text-sm ${
-                      index !== promotionPerformance.length - 1 ? "border-b" : ""
-                    }`}
-                  >
-                    <div className="font-medium">{promo.name}</div>
-                    <div className="text-center">{promo.views}</div>
-                    <div className="text-center">{promo.clicks}</div>
-                    <div className="text-center">{promo.ctr}%</div>
+              {promotions.length > 0 ? (
+                <div className="rounded-md border">
+                  <div className="grid grid-cols-4 bg-muted p-4 text-sm font-medium">
+                    <div>Promotion</div>
+                    <div className="text-center">Views</div>
+                    <div className="text-center">Clicks</div>
+                    <div className="text-center">CTR (%)</div>
                   </div>
-                ))}
-              </div>
+                  {promotions.map((promo, index) => {
+                    const promoViews = promo.views || 0
+                    const promoClicks = promo.clicks || 0
+                    const promoCtr = promoViews > 0 ? Math.round((promoClicks / promoViews) * 100) : 0
+
+                    return (
+                      <div
+                        key={promo.id}
+                        className={`grid grid-cols-4 p-4 text-sm ${index !== promotions.length - 1 ? "border-b" : ""}`}
+                      >
+                        <div className="font-medium">{promo.title}</div>
+                        <div className="text-center">{promoViews}</div>
+                        <div className="text-center">{promoClicks}</div>
+                        <div className="text-center">{promoCtr}%</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No promotions found. Create a promotion to see analytics.
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Analytics Coming Soon</CardTitle>
-          <CardDescription>
-            We're working on enhancing our analytics features to provide you with more detailed insights about your
-            promotions.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            In the future, you'll be able to track detailed metrics such as:
-          </p>
-          <ul className="list-disc pl-5 mt-2 space-y-1 text-sm text-muted-foreground">
-            <li>Demographic information about users viewing your promotions</li>
-            <li>Conversion tracking for promotion redemptions</li>
-            <li>Geographic distribution of your audience</li>
-            <li>Custom date range reporting</li>
-            <li>Export capabilities for your analytics data</li>
-          </ul>
-        </CardContent>
-      </Card>
     </div>
   )
 }

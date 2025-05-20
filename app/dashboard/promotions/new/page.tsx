@@ -11,15 +11,17 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Upload, X, Calendar, Tag, MapPin } from "lucide-react"
-import { doc, updateDoc, getDoc, addDoc, collection } from "firebase/firestore"
+import { Loader2, Upload, X, Calendar, Tag, MapPin, AlertCircle } from "lucide-react"
+import { doc, updateDoc, getDoc, addDoc, collection, query, where, getDocs } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { db, storage } from "@/lib/firebase"
 import { format } from "date-fns"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 const PROMOTION_CATEGORIES = ["Restaurant", "Spa", "Retail", "Entertainment", "Other"]
+const MAX_PROMOTIONS = 2
 
 export default function NewPromotionPage() {
   const { user, userProfile } = useAuth()
@@ -32,6 +34,8 @@ export default function NewPromotionPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(true)
+  const [existingPromotions, setExistingPromotions] = useState<any[]>([])
+  const [reachedLimit, setReachedLimit] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const { toast } = useToast()
@@ -48,21 +52,6 @@ export default function NewPromotionPage() {
             if (docSnap.exists()) {
               const data = docSnap.data()
               setAddress(data.address || "")
-
-              // Check if user can create promotions
-              const promotionsUsed = data.promotions_used || 0
-              const promotionsLimit = data.promotions_limit || 2
-
-              if (promotionsUsed >= promotionsLimit) {
-                toast({
-                  variant: "destructive",
-                  title: "Promotion limit reached",
-                  description: "Upgrade to Premium to create more promotions.",
-                })
-                router.push("/dashboard/promotions")
-              }
-              setIsLoadingData(false)
-              return
             }
           } catch (error) {
             console.log("Could not fetch from business_users, trying businesses collection")
@@ -75,27 +64,28 @@ export default function NewPromotionPage() {
           if (docSnap.exists()) {
             const data = docSnap.data()
             setAddress(data.address || "")
-
-            // Check if user can create promotions
-            const promotionsUsed = data.promotions_used || data.promotionsUsed || 0
-            const promotionsLimit = data.promotions_limit || data.promotionsLimit || 2
-
-            if (promotionsUsed >= promotionsLimit) {
-              toast({
-                variant: "destructive",
-                title: "Promotion limit reached",
-                description: "Upgrade to Premium to create more promotions.",
-              })
-              router.push("/dashboard/promotions")
-            }
           }
         } catch (error) {
           console.error("Error fetching user data:", error)
           // Don't show an error toast, just log it
           // We'll continue with default values
-        } finally {
-          setIsLoadingData(false)
         }
+
+        // Check existing promotions count
+        try {
+          const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
+          const promotionsSnapshot = await getDocs(promotionsQuery)
+          const promotionsData = promotionsSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
+          setExistingPromotions(promotionsData)
+          setReachedLimit(promotionsData.length >= MAX_PROMOTIONS)
+        } catch (error) {
+          console.error("Error fetching promotions count:", error)
+        }
+
+        setIsLoadingData(false)
       }
     }
 
@@ -137,6 +127,15 @@ export default function NewPromotionPage() {
       return
     }
 
+    if (reachedLimit) {
+      toast({
+        variant: "destructive",
+        title: "Promotion limit reached",
+        description: `You can only have ${MAX_PROMOTIONS} active promotions at a time.`,
+      })
+      return
+    }
+
     if (!title || !category || !description) {
       toast({
         variant: "destructive",
@@ -153,10 +152,10 @@ export default function NewPromotionPage() {
 
       if (imageFile) {
         try {
-          // Use a public folder for promotions to avoid permission issues
+          // Use the promotions folder for promotion images
           const storageRef = ref(
             storage,
-            `public_promotions/${user.uid}/${Date.now()}_${imageFile.name.replace(/[^a-zA-Z0-9.]/g, "_")}`,
+            `promotions/${user.uid}/${Date.now()}_${imageFile.name.replace(/[^a-zA-Z0-9.]/g, "_")}`,
           )
           await uploadBytes(storageRef, imageFile)
           imageURL = await getDownloadURL(storageRef)
@@ -179,7 +178,7 @@ export default function NewPromotionPage() {
         address,
         ...(expirationDate && { expiration_date: expirationDate.toISOString() }),
         ...(imageURL && { image_url: imageURL }),
-        status: "pending",
+        status: "live", // Set to live immediately - no review needed
         created_at: new Date().toISOString(),
         views: 0,
         clicks: 0,
@@ -226,8 +225,8 @@ export default function NewPromotionPage() {
       }
 
       toast({
-        title: "Promotion submitted",
-        description: "Your promotion has been submitted for review.",
+        title: "Promotion created",
+        description: "Your promotion is now live!",
       })
 
       router.push("/dashboard/promotions")
@@ -257,6 +256,16 @@ export default function NewPromotionPage() {
         <p className="text-muted-foreground">Fill in the details to create a new promotion for your business</p>
       </div>
 
+      {reachedLimit && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            You have reached the maximum limit of {MAX_PROMOTIONS} active promotions. Please delete an existing
+            promotion before creating a new one.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
           <Card>
@@ -272,6 +281,7 @@ export default function NewPromotionPage() {
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. 20% Off Lunch Specials"
                     required
+                    disabled={reachedLimit}
                   />
                 </div>
 
@@ -287,6 +297,7 @@ export default function NewPromotionPage() {
                         variant={category === cat ? "default" : "outline"}
                         className={category === cat ? "bg-[#6A0DAD] hover:bg-[#5a0b93]" : ""}
                         onClick={() => setCategory(cat)}
+                        disabled={reachedLimit}
                       >
                         {cat}
                       </Button>
@@ -313,6 +324,7 @@ export default function NewPromotionPage() {
                     className="resize-none"
                     rows={4}
                     required
+                    disabled={reachedLimit}
                   />
                 </div>
 
@@ -323,6 +335,7 @@ export default function NewPromotionPage() {
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="123 Main St, City, State, ZIP"
+                    disabled={reachedLimit}
                   />
                 </div>
 
@@ -330,7 +343,11 @@ export default function NewPromotionPage() {
                   <Label htmlFor="expirationDate">Expiration Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                        disabled={reachedLimit}
+                      >
                         <Calendar className="mr-2 h-4 w-4" />
                         {expirationDate ? format(expirationDate, "PPP") : <span>Pick a date</span>}
                       </Button>
@@ -361,14 +378,17 @@ export default function NewPromotionPage() {
                           type="button"
                           onClick={removeImage}
                           className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+                          disabled={reachedLimit}
                         >
                           <X className="h-4 w-4" />
                         </button>
                       </div>
                     ) : (
                       <div
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[#6A0DAD]"
+                        onClick={() => !reachedLimit && fileInputRef.current?.click()}
+                        className={`w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center ${
+                          !reachedLimit ? "cursor-pointer hover:border-[#6A0DAD]" : "opacity-50"
+                        }`}
                       >
                         <Upload className="h-6 w-6 text-gray-400" />
                         <span className="text-xs text-gray-500 mt-1">Upload</span>
@@ -380,6 +400,7 @@ export default function NewPromotionPage() {
                       onChange={handleImageChange}
                       accept="image/*"
                       className="hidden"
+                      disabled={reachedLimit}
                     />
                     <div className="text-sm text-gray-500">Upload a JPG or PNG image for your promotion</div>
                   </div>
@@ -389,14 +410,18 @@ export default function NewPromotionPage() {
                   <Button type="button" variant="outline" onClick={() => router.push("/dashboard/promotions")}>
                     Cancel
                   </Button>
-                  <Button type="submit" className="bg-[#6A0DAD] hover:bg-[#5a0b93]" disabled={isLoading}>
+                  <Button
+                    type="submit"
+                    className="bg-[#6A0DAD] hover:bg-[#5a0b93]"
+                    disabled={isLoading || reachedLimit}
+                  >
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Submitting...
+                        Creating...
                       </>
                     ) : (
-                      "Submit Promotion"
+                      "Create Promotion"
                     )}
                   </Button>
                 </div>
@@ -446,10 +471,7 @@ export default function NewPromotionPage() {
               </div>
 
               <div className="mt-6 bg-blue-50 p-4 rounded-lg">
-                <p className="text-blue-700 text-sm">
-                  Promotions are reviewed before being published. You&apos;ll be notified when your promotion is
-                  approved.
-                </p>
+                <p className="text-blue-700 text-sm">Your promotion will be published immediately after creation.</p>
               </div>
             </CardContent>
           </Card>

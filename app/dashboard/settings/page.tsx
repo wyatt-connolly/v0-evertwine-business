@@ -14,9 +14,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Upload, X } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
-import { doc, updateDoc } from "firebase/firestore"
+import { doc, updateDoc, setDoc, getDoc } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { db, storage, auth } from "@/lib/firebase"
+import { db, auth, storage } from "@/lib/firebase"
 import { sendPasswordResetEmail } from "firebase/auth"
 
 export default function SettingsPage() {
@@ -33,6 +33,7 @@ export default function SettingsPage() {
   const [bio, setBio] = useState("")
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [showImageWarning, setShowImageWarning] = useState(false)
 
   // Notification settings
   const [promotionUpdates, setPromotionUpdates] = useState(true)
@@ -85,27 +86,26 @@ export default function SettingsPage() {
 
     setIsLoading(true)
 
-    try {
-      let photoURL = photoPreview
+    let photoURL = userProfile?.photo_url || userProfile?.photoURL || null
 
-      // Upload new photo if one was selected
+    try {
+      // Upload image if a new one is selected
       if (photoFile) {
         try {
-          // Use a public folder for business photos to avoid permission issues
-          // Also sanitize the filename to remove special characters
-          const sanitizedFileName = photoFile.name.replace(/[^a-zA-Z0-9.]/g, "_")
-          const storageRef = ref(storage, `public_business_photos/${user.uid}/${Date.now()}_${sanitizedFileName}`)
+          const storageRef = ref(
+            storage,
+            `business_users/${user.uid}/profile_photo/${Date.now()}_${photoFile.name.replace(/[^a-zA-Z0-9.]/g, "_")}`,
+          )
           await uploadBytes(storageRef, photoFile)
           photoURL = await getDownloadURL(storageRef)
-        } catch (error: any) {
-          console.error("Error uploading image:", error)
+        } catch (uploadError: any) {
+          console.error("Error uploading image:", uploadError)
           toast({
             variant: "destructive",
             title: "Image upload failed",
-            description: "Your profile will be updated without the new image. You can try again later.",
+            description: "Your profile will be updated without the new image. Please try again later.",
           })
-          // Continue without updating the photo
-          photoURL = userProfile?.photo_url || userProfile?.photoURL || null
+          // Continue without updating the image
         }
       }
 
@@ -115,40 +115,31 @@ export default function SettingsPage() {
         address: address,
         bio: bio,
         updated_at: new Date().toISOString(),
+        ...(photoURL && { photo_url: photoURL, business_photo: photoURL }), // Add both fields for compatibility
       }
 
-      // Only add photo_url if we have a valid URL
-      if (photoURL) {
-        profileData.photo_url = photoURL
-      }
+      // Only update in business_users collection
+      const userRef = doc(db, "business_users", user.uid)
+      const docSnap = await getDoc(userRef)
 
-      // Try to update in business_users collection first
-      try {
-        const userRef = doc(db, "business_users", user.uid)
+      if (docSnap.exists()) {
+        // Update existing document
         await updateDoc(userRef, profileData)
         toast({
           title: "Profile updated",
           description: "Your business profile has been updated successfully.",
         })
-        return
-      } catch (error) {
-        console.error("Could not update business_users, trying businesses collection")
-      }
-
-      // Fall back to businesses collection
-      try {
-        const userRef = doc(db, "businesses", user.uid)
-        await updateDoc(userRef, profileData)
-        toast({
-          title: "Profile updated",
-          description: "Your business profile has been updated successfully.",
+      } else {
+        // Create new document
+        await setDoc(userRef, {
+          ...profileData,
+          created_at: new Date().toISOString(),
+          email: user.email,
+          user_id: user.uid,
         })
-      } catch (error: any) {
-        console.error("Error updating profile:", error)
         toast({
-          variant: "destructive",
-          title: "Failed to update profile",
-          description: error.message || "Please try again.",
+          title: "Profile created",
+          description: "Your business profile has been created successfully.",
         })
       }
     } catch (error: any) {
@@ -184,33 +175,28 @@ export default function SettingsPage() {
         updated_at: new Date().toISOString(),
       }
 
-      // Try to update in business_users collection first
-      try {
-        const userRef = doc(db, "business_users", user.uid)
-        await updateDoc(userRef, notificationData)
-        toast({
-          title: "Notification preferences updated",
-          description: "Your notification settings have been saved.",
-        })
-        return
-      } catch (error) {
-        console.error("Could not update business_users, trying businesses collection")
-      }
+      // Only update in business_users collection
+      const userRef = doc(db, "business_users", user.uid)
+      const docSnap = await getDoc(userRef)
 
-      // Fall back to businesses collection
-      try {
-        const userRef = doc(db, "businesses", user.uid)
+      if (docSnap.exists()) {
+        // Update existing document
         await updateDoc(userRef, notificationData)
         toast({
           title: "Notification preferences updated",
           description: "Your notification settings have been saved.",
         })
-      } catch (error: any) {
-        console.error("Error updating notification preferences:", error)
+      } else {
+        // Create new document
+        await setDoc(userRef, {
+          ...notificationData,
+          created_at: new Date().toISOString(),
+          email: user.email,
+          user_id: user.uid,
+        })
         toast({
-          variant: "destructive",
-          title: "Failed to update notification preferences",
-          description: error.message || "Please try again.",
+          title: "Notification preferences created",
+          description: "Your notification settings have been saved.",
         })
       }
     } catch (error: any) {
@@ -277,6 +263,17 @@ export default function SettingsPage() {
               <CardDescription>Update your business information and how it appears to customers</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* {showImageWarning && (
+                <Alert variant="warning" className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Image Upload Limitation</AlertTitle>
+                  <AlertDescription>
+                    Due to current system limitations, profile images cannot be updated at this time. Your other profile
+                    information will still be saved.
+                  </AlertDescription>
+                </Alert>
+              )} */}
+
               <div className="space-y-2">
                 <Label htmlFor="photo">Business Photo</Label>
                 <div className="flex items-center gap-4">
@@ -290,10 +287,14 @@ export default function SettingsPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          setPhotoPreview(null)
-                          setPhotoFile(null)
-                          if (fileInputRef.current) {
-                            fileInputRef.current.value = ""
+                          // Only reset the new photo file and preview if it's a new upload
+                          // Keep the existing photo from userProfile
+                          if (photoFile) {
+                            setPhotoPreview(userProfile?.photo_url || userProfile?.photoURL || null)
+                            setPhotoFile(null)
+                            if (fileInputRef.current) {
+                              fileInputRef.current.value = ""
+                            }
                           }
                         }}
                         className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
@@ -318,7 +319,10 @@ export default function SettingsPage() {
                     className="hidden"
                     onChange={handleImageChange}
                   />
-                  <div className="text-sm text-gray-500">Upload a square image for best results</div>
+                  <div className="text-sm text-gray-500">
+                    <p>Upload a square image for best results</p>
+                    <p className="text-xs text-gray-500">JPG, PNG or GIF up to 2MB</p>
+                  </div>
                 </div>
               </div>
 
@@ -498,19 +502,12 @@ export default function SettingsPage() {
                   <div className="bg-muted p-4 rounded-lg">
                     <div className="flex justify-between items-center">
                       <div>
-                        <p className="font-medium capitalize">{userProfile?.plan || "Free"} Plan</p>
-                        <p className="text-sm text-muted-foreground">
-                          {userProfile?.plan === "premium" ? "5 promotions allowed" : "2 promotions allowed"}
-                        </p>
+                        <p className="font-medium">Business Plan</p>
+                        <p className="text-sm text-muted-foreground">2 promotions allowed</p>
                       </div>
-                      {userProfile?.plan === "premium" ? (
-                        <div className="text-sm">
-                          <p className="font-medium">$25/month</p>
-                          <p className="text-muted-foreground">Next billing: Aug 15, 2023</p>
-                        </div>
-                      ) : (
-                        <Button className="bg-[#6A0DAD] hover:bg-[#5a0b93]">Upgrade to Premium</Button>
-                      )}
+                      <div className="text-sm">
+                        <p className="font-medium">Business Plan</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -573,7 +570,7 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No billing history available for free plan</p>
+                    <p className="text-sm text-muted-foreground">No billing history available</p>
                   )}
                 </div>
               </div>
