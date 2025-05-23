@@ -1,9 +1,17 @@
 "use client"
 
+console.log("Rendering EDIT promotion page")
+
 import type React from "react"
+// Define Google Maps types locally
+declare global {
+  interface Window {
+    google: any
+  }
+}
 
 import { useState, useRef, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,15 +19,18 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Upload, X, Calendar, Tag, MapPin } from "lucide-react"
+import { Loader2, Calendar, Tag, MapPin, ImagePlus } from "lucide-react"
 import { doc, updateDoc, getDoc } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { db, storage } from "@/lib/firebase"
 import { format } from "date-fns"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ImageCarousel } from "@/components/image-carousel"
+import { AddressAutocomplete } from "@/components/address-autocomplete"
 
 const PROMOTION_CATEGORIES = ["Restaurant", "Spa", "Retail", "Entertainment", "Other"]
+const MAX_IMAGES = 6
 
 export default function EditPromotionPage({ params }: { params: { id: string } }) {
   const { user } = useAuth()
@@ -27,97 +38,159 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
   const [category, setCategory] = useState("")
   const [description, setDescription] = useState("")
   const [address, setAddress] = useState("")
+  const [placeData, setPlaceData] = useState<any>(null)
   const [expirationDate, setExpirationDate] = useState<Date | undefined>(undefined)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [currentImageURL, setCurrentImageURL] = useState<string | null>(null)
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([])
   const [status, setStatus] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+  const pathname = usePathname()
   const { toast } = useToast()
+
+  // Debug the current path
+  useEffect(() => {
+    console.log("Current pathname:", pathname)
+    console.log("This should be the EDIT promotion page")
+    console.log("Promotion ID from params:", params.id)
+  }, [pathname, params.id])
 
   useEffect(() => {
     const fetchPromotionData = async () => {
-      if (user && params.id) {
-        try {
-          const docRef = doc(db, "promotions", params.id)
-          const docSnap = await getDoc(docRef)
+      if (!user || !params.id) {
+        console.log("No user or promotion ID, redirecting to promotions page")
+        router.push("/dashboard/promotions")
+        return
+      }
 
-          if (docSnap.exists()) {
-            const data = docSnap.data()
+      console.log("Fetching promotion data for ID:", params.id)
 
-            // Check if the promotion belongs to the current user
-            if (data.business_id !== user.uid) {
-              toast({
-                variant: "destructive",
-                title: "Access denied",
-                description: "You do not have permission to edit this promotion.",
-              })
-              router.push("/dashboard/promotions")
-              return
-            }
+      try {
+        const docRef = doc(db, "promotions", params.id)
+        const docSnap = await getDoc(docRef)
 
-            setTitle(data.title || "")
-            setCategory(data.category || "")
-            setDescription(data.description || "")
-            setAddress(data.address || "")
-            setStatus(data.status || "live")
-
-            if (data.expiration_date) {
-              setExpirationDate(new Date(data.expiration_date))
-            }
-
-            if (data.image_url) {
-              setCurrentImageURL(data.image_url)
-              setImagePreview(data.image_url)
-            }
-          } else {
-            toast({
-              variant: "destructive",
-              title: "Promotion not found",
-              description: "The promotion you are trying to edit does not exist.",
-            })
-            router.push("/dashboard/promotions")
-          }
-        } catch (error) {
-          console.error("Error fetching promotion data:", error)
+        if (!docSnap.exists()) {
+          console.error("Promotion not found with ID:", params.id)
           toast({
             variant: "destructive",
-            title: "Error",
-            description: "Failed to load promotion data. Please try again.",
+            title: "Promotion not found",
+            description: "The promotion you are trying to edit does not exist.",
           })
-        } finally {
-          setIsLoadingData(false)
+          router.push("/dashboard/promotions")
+          return
         }
+
+        const data = docSnap.data()
+        console.log("Promotion data retrieved:", data)
+
+        // Check if the promotion belongs to the current user
+        if (data.business_id !== user.uid) {
+          console.error("Access denied - promotion belongs to another user")
+          toast({
+            variant: "destructive",
+            title: "Access denied",
+            description: "You do not have permission to edit this promotion.",
+          })
+          router.push("/dashboard/promotions")
+          return
+        }
+
+        setTitle(data.title || "")
+        setCategory(data.category || "")
+        setDescription(data.description || "")
+        setAddress(data.address || "")
+        setStatus(data.status || "live")
+
+        if (data.location) {
+          setPlaceData({
+            lat: data.location.lat,
+            lng: data.location.lng,
+            formatted_address: data.formatted_address || data.address,
+          })
+        }
+
+        if (data.expiration_date) {
+          setExpirationDate(new Date(data.expiration_date))
+        }
+
+        // Handle both single image_url and multiple image_urls
+        if (data.image_urls && Array.isArray(data.image_urls)) {
+          setExistingImageUrls(data.image_urls)
+        } else if (data.image_url) {
+          setExistingImageUrls([data.image_url])
+        }
+      } catch (error) {
+        console.error("Error fetching promotion data:", error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load promotion data. Please try again.",
+        })
+        router.push("/dashboard/promotions")
+      } finally {
+        setIsLoadingData(false)
       }
     }
 
     fetchPromotionData()
-  }, [user, params.id, router])
+  }, [user, params.id, router, toast])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      setImageFile(file)
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files)
 
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          setImagePreview(e.target.result as string)
-        }
+      // Check if adding these files would exceed the limit
+      if (existingImageUrls.length + imageFiles.length + newFiles.length > MAX_IMAGES) {
+        toast({
+          variant: "destructive",
+          title: "Too many images",
+          description: `You can only upload up to ${MAX_IMAGES} images per promotion.`,
+        })
+        return
       }
-      reader.readAsDataURL(file)
+
+      // Add new files to the existing ones
+      const updatedFiles = [...imageFiles, ...newFiles]
+      setImageFiles(updatedFiles)
+
+      // Generate preview URLs for all files
+      const newPreviewUrls = newFiles.map((file) => URL.createObjectURL(file))
+      setImagePreviewUrls((prev) => [...prev, ...newPreviewUrls])
     }
   }
 
-  const removeImage = () => {
-    setImageFile(null)
-    setImagePreview(null)
-    setCurrentImageURL(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
+  const removeNewImage = (index: number) => {
+    // Remove the file and its preview URL
+    const newFiles = [...imageFiles]
+    newFiles.splice(index, 1)
+    setImageFiles(newFiles)
+
+    const newPreviewUrls = [...imagePreviewUrls]
+    // Revoke the object URL to avoid memory leaks
+    URL.revokeObjectURL(newPreviewUrls[index])
+    newPreviewUrls.splice(index, 1)
+    setImagePreviewUrls(newPreviewUrls)
+  }
+
+  const removeExistingImage = (index: number) => {
+    const newUrls = [...existingImageUrls]
+    newUrls.splice(index, 1)
+    setExistingImageUrls(newUrls)
+  }
+
+  const handleAddressChange = (newAddress: string, place?: any) => {
+    setAddress(newAddress)
+    if (place) {
+      setPlaceData({
+        lat: place.geometry?.location?.lat(),
+        lng: place.geometry?.location?.lng(),
+        formatted_address: place.formatted_address,
+      })
+    } else {
+      setPlaceData(null)
     }
   }
 
@@ -145,31 +218,63 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
     setIsLoading(true)
 
     try {
-      let imageURL = currentImageURL
+      let newImageURLs: string[] = []
 
-      if (imageFile) {
-        const storageRef = ref(
-          storage,
-          `promotions/${user.uid}/${Date.now()}_${imageFile.name.replace(/[^a-zA-Z0-9.]/g, "_")}`,
-        )
-        await uploadBytes(storageRef, imageFile)
-        imageURL = await getDownloadURL(storageRef)
+      // Upload all new images if there are any
+      if (imageFiles.length > 0) {
+        try {
+          // Upload each image and collect the URLs
+          const uploadPromises = imageFiles.map(async (file) => {
+            const storageRef = ref(
+              storage,
+              `promotions/${user.uid}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`,
+            )
+            await uploadBytes(storageRef, file)
+            return getDownloadURL(storageRef)
+          })
+
+          newImageURLs = await Promise.all(uploadPromises)
+        } catch (uploadError: any) {
+          console.error("Error uploading images:", uploadError)
+          toast({
+            variant: "destructive",
+            title: "Image upload failed",
+            description: "Your promotion will be updated without the new images. You can try again later.",
+          })
+          // Continue without the new images
+        }
       }
+
+      // Combine existing and new image URLs
+      const allImageUrls = [...existingImageUrls, ...newImageURLs]
 
       const promotionData = {
         title,
         category,
         description,
         address,
+        ...(placeData && {
+          location: {
+            lat: placeData.lat,
+            lng: placeData.lng,
+          },
+          formatted_address: placeData.formatted_address,
+        }),
         ...(expirationDate && { expiration_date: expirationDate.toISOString() }),
-        ...(imageURL && { image_url: imageURL }),
+        ...(allImageUrls.length > 0 && {
+          image_url: allImageUrls[0], // For backward compatibility
+          image_urls: allImageUrls,
+        }),
         updated_at: new Date().toISOString(),
         // Always keep status as live
         status: "live",
       }
 
+      console.log("Updating promotion with data:", promotionData)
+
       // Update promotion in Firestore
       await updateDoc(doc(db, "promotions", params.id), promotionData)
+      console.log("Promotion updated successfully")
 
       toast({
         title: "Promotion updated",
@@ -178,6 +283,7 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
 
       router.push("/dashboard/promotions")
     } catch (error: any) {
+      console.error("Failed to update promotion:", error)
       toast({
         variant: "destructive",
         title: "Failed to update promotion",
@@ -195,6 +301,9 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
       </div>
     )
   }
+
+  // Combine existing and new images for preview
+  const allImages = [...existingImageUrls, ...imagePreviewUrls]
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -262,15 +371,7 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="123 Main St, City, State, ZIP"
-                  />
-                </div>
+                <AddressAutocomplete value={address} onChange={handleAddressChange} />
 
                 <div className="space-y-2">
                   <Label htmlFor="expirationDate">Expiration Date</Label>
@@ -294,40 +395,46 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Promotion Image</Label>
+                  <Label>Promotion Images (Up to {MAX_IMAGES})</Label>
+
+                  {allImages.length > 0 && (
+                    <div className="mb-4">
+                      <ImageCarousel
+                        images={allImages}
+                        onRemoveImage={(index) =>
+                          index < existingImageUrls.length
+                            ? removeExistingImage(index)
+                            : removeNewImage(index - existingImageUrls.length)
+                        }
+                        editable={true}
+                      />
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-4">
-                    {imagePreview ? (
-                      <div className="relative">
-                        <img
-                          src={imagePreview || "/placeholder.svg"}
-                          alt="Promotion preview"
-                          className="w-24 h-24 object-cover rounded-lg"
-                        />
-                        <button
-                          type="button"
-                          onClick={removeImage}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[#6A0DAD]"
-                      >
-                        <Upload className="h-6 w-6 text-gray-400" />
-                        <span className="text-xs text-gray-500 mt-1">Upload</span>
-                      </div>
-                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={allImages.length >= MAX_IMAGES}
+                      className="flex items-center gap-2"
+                    >
+                      <ImagePlus className="h-4 w-4" />
+                      {allImages.length === 0 ? "Add Images" : "Add More Images"}
+                      <span className="text-xs text-muted-foreground">
+                        ({allImages.length}/{MAX_IMAGES})
+                      </span>
+                    </Button>
                     <input
                       type="file"
                       ref={fileInputRef}
                       onChange={handleImageChange}
                       accept="image/*"
+                      multiple
                       className="hidden"
+                      disabled={allImages.length >= MAX_IMAGES}
                     />
-                    <div className="text-sm text-gray-500">Upload a JPG or PNG image for your promotion</div>
+                    <div className="text-sm text-gray-500">Upload JPG or PNG images for your promotion</div>
                   </div>
                 </div>
 
@@ -356,17 +463,13 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
             <CardContent className="p-6">
               <h3 className="font-medium mb-4">Live Preview</h3>
               <div className="border rounded-lg overflow-hidden">
-                <div className="aspect-video bg-gray-100 flex items-center justify-center">
-                  {imagePreview ? (
-                    <img
-                      src={imagePreview || "/placeholder.svg"}
-                      alt="Promotion preview"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
+                {allImages.length > 0 ? (
+                  <ImageCarousel images={allImages} />
+                ) : (
+                  <div className="aspect-video bg-gray-100 flex items-center justify-center">
                     <Tag className="h-12 w-12 text-gray-400" />
-                  )}
-                </div>
+                  </div>
+                )}
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-1">
                     <Tag className="h-4 w-4 text-gray-500" />

@@ -139,18 +139,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (currentUser) {
         try {
-          // First try to get from business_users collection (new)
-          let userDoc = await getDoc(doc(db, "business_users", currentUser.uid))
-
-          // If not found, try the old businesses collection
-          if (!userDoc.exists()) {
-            userDoc = await getDoc(doc(db, "businesses", currentUser.uid))
-          }
+          // Get user profile from business_users collection
+          const userDoc = await getDoc(doc(db, "business_users", currentUser.uid))
 
           if (userDoc.exists()) {
             setUserProfile(userDoc.data())
           } else {
-            console.log("No user profile found in either collection")
+            console.log("No user profile found")
             setUserProfile(null)
           }
         } catch (error) {

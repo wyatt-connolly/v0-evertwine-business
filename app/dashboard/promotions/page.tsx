@@ -17,6 +17,8 @@ import {
   Music,
   Coffee,
   AlertCircle,
+  Eye,
+  MousePointerClick,
 } from "lucide-react"
 import {
   AlertDialog,
@@ -65,11 +67,17 @@ export default function PromotionsPage() {
       // Query using business_id field which is used when creating promotions
       const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
       const promotionsSnapshot = await getDocs(promotionsQuery)
-      const promotionsData = promotionsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }))
+
+      // Filter to only include live promotions
+      const promotionsData = promotionsSnapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .filter((promo) => promo.status === "live")
+
       setPromotions(promotionsData)
+      console.log(`Found ${promotionsData.length} live promotions`)
     } catch (error: any) {
       console.error("Error fetching promotions:", error)
       setError(error.message || "Failed to load promotions")
@@ -154,34 +162,36 @@ export default function PromotionsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Manage Promotions</h1>
           <p className="text-muted-foreground">Create and manage your business promotions</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => router.push("/dashboard/promotions/new")}
-            className="bg-[#6A0DAD] hover:bg-[#5a0b93]"
-            data-walkthrough="create-promotion"
-            disabled={reachedLimit}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Create New Promotion
-          </Button>
-        </div>
+        <Button
+          onClick={() => router.push("/dashboard/promotions/new")}
+          className="bg-[#6A0DAD] hover:bg-[#5a0b93] w-full sm:w-auto"
+          data-walkthrough="create-promotion"
+          disabled={reachedLimit}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Create New Promotion
+        </Button>
       </div>
 
-      <div className="flex justify-between items-center bg-blue-50 p-4 rounded-lg">
-        <div className="flex items-center">
-          <span className="font-medium">Promotions: </span>
-          <span className="ml-2">
-            {promotions.length} of {MAX_PROMOTIONS} used
-          </span>
+      <div className="bg-blue-50 p-4 rounded-lg">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <div className="flex items-center">
+            <span className="font-medium">Promotions:</span>
+            <span className="ml-2">
+              {promotions.length} of {MAX_PROMOTIONS} used
+            </span>
+          </div>
+          {reachedLimit && (
+            <div className="w-full sm:w-auto">
+              <Alert variant="warning" className="p-2 border-yellow-200 bg-yellow-50">
+                <AlertCircle className="h-4 w-4 text-yellow-600" />
+                <AlertDescription className="text-yellow-600 text-sm">
+                  You've reached your limit of {MAX_PROMOTIONS} promotions
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
         </div>
-        {reachedLimit && (
-          <Alert variant="warning" className="p-2 border-yellow-200 bg-yellow-50">
-            <AlertCircle className="h-4 w-4 text-yellow-600" />
-            <AlertDescription className="text-yellow-600 text-sm">
-              You've reached your limit of {MAX_PROMOTIONS} promotions
-            </AlertDescription>
-          </Alert>
-        )}
       </div>
 
       {promotions.length > 0 ? (
@@ -222,15 +232,19 @@ export default function PromotionsPage() {
                 <CardContent className="p-4">
                   <p className="text-sm text-gray-500 line-clamp-2 mb-4">{promotion.description}</p>
                   <div className="flex justify-between items-center">
-                    <div className="text-sm text-gray-500 flex items-center gap-2">
-                      <span>👁️ {promotion.views || 0}</span>
-                      <span>👆 {promotion.clicks || 0}</span>
+                    <div className="text-sm text-gray-500 flex items-center gap-3">
+                      <span className="flex items-center gap-1">
+                        <Eye className="h-4 w-4" /> {promotion.views || 0}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MousePointerClick className="h-4 w-4" /> {promotion.clicks || 0}
+                      </span>
                     </div>
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => router.push(`/dashboard/promotions/${promotion.id}`)}
+                        onClick={() => router.push(`/dashboard/promotions/edit/${promotion.id}`)}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>

@@ -1,9 +1,17 @@
 "use client"
 
+console.log("Rendering NEW promotion page")
+
 import type React from "react"
+// Define Google Maps types locally
+declare global {
+  interface Window {
+    google: any
+  }
+}
 
 import { useState, useRef, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,17 +19,20 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Upload, X, Calendar, Tag, MapPin, AlertCircle } from "lucide-react"
-import { doc, updateDoc, getDoc, addDoc, collection, query, where, getDocs } from "firebase/firestore"
+import { Loader2, Calendar, Tag, MapPin, AlertCircle, ImagePlus } from "lucide-react"
+import { doc, updateDoc, getDoc, addDoc, collection, query, where, getDocs, type GeoPoint } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { db, storage } from "@/lib/firebase"
 import { format } from "date-fns"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ImageCarousel } from "@/components/image-carousel"
+import { AddressAutocomplete } from "@/components/address-autocomplete"
 
 const PROMOTION_CATEGORIES = ["Restaurant", "Spa", "Retail", "Entertainment", "Other"]
 const MAX_PROMOTIONS = 2
+const MAX_IMAGES = 6
 
 export default function NewPromotionPage() {
   const { user, userProfile } = useAuth()
@@ -29,90 +40,129 @@ export default function NewPromotionPage() {
   const [category, setCategory] = useState("")
   const [description, setDescription] = useState("")
   const [address, setAddress] = useState("")
+  const [placeData, setPlaceData] = useState<any>(null)
+  const [geoPoint, setGeoPoint] = useState<GeoPoint | null>(null)
   const [expirationDate, setExpirationDate] = useState<Date | undefined>(undefined)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [existingPromotions, setExistingPromotions] = useState<any[]>([])
   const [reachedLimit, setReachedLimit] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+  const pathname = usePathname()
   const { toast } = useToast()
+
+  // Debug the current path
+  useEffect(() => {
+    console.log("Current pathname:", pathname)
+    console.log("This should be the NEW promotion page")
+  }, [pathname])
 
   useEffect(() => {
     const fetchUserData = async () => {
-      if (user) {
-        try {
-          // First try the business_users collection (new)
-          try {
-            const docRef = doc(db, "business_users", user.uid)
-            const docSnap = await getDoc(docRef)
+      if (!user) {
+        setIsLoadingData(false)
+        return
+      }
 
-            if (docSnap.exists()) {
-              const data = docSnap.data()
-              setAddress(data.address || "")
-            }
-          } catch (error) {
-            console.log("Could not fetch from business_users, trying businesses collection")
-          }
+      console.log("Fetching user data for NEW promotion page")
 
-          // Fall back to the businesses collection (old)
-          const docRef = doc(db, "businesses", user.uid)
-          const docSnap = await getDoc(docRef)
+      try {
+        // Get user data from business_users collection
+        const docRef = doc(db, "business_users", user.uid)
+        const docSnap = await getDoc(docRef)
 
-          if (docSnap.exists()) {
-            const data = docSnap.data()
-            setAddress(data.address || "")
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error)
-          // Don't show an error toast, just log it
-          // We'll continue with default values
+        if (docSnap.exists()) {
+          const data = docSnap.data()
+          setAddress(data.address || "")
         }
+      } catch (error) {
+        console.error("Error fetching user data:", error)
+        // Don't show an error toast, just log it
+      }
 
-        // Check existing promotions count
-        try {
-          const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
-          const promotionsSnapshot = await getDocs(promotionsQuery)
-          const promotionsData = promotionsSnapshot.docs.map((doc) => ({
+      // Check existing promotions count
+      try {
+        // Make sure we're querying with the correct field name
+        const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
+        const promotionsSnapshot = await getDocs(promotionsQuery)
+
+        // Filter to only include live promotions
+        const promotionsData = promotionsSnapshot.docs
+          .map((doc) => ({
             id: doc.id,
             ...doc.data(),
           }))
-          setExistingPromotions(promotionsData)
-          setReachedLimit(promotionsData.length >= MAX_PROMOTIONS)
-        } catch (error) {
-          console.error("Error fetching promotions count:", error)
-        }
+          .filter((promo) => promo.status === "live")
 
-        setIsLoadingData(false)
+        setExistingPromotions(promotionsData)
+
+        // Only set reached limit if we actually have MAX_PROMOTIONS or more
+        const hasReachedLimit = promotionsData.length >= MAX_PROMOTIONS
+        setReachedLimit(hasReachedLimit)
+
+        console.log(`Found ${promotionsData.length} promotions, limit reached: ${hasReachedLimit}`)
+      } catch (error) {
+        console.error("Error fetching promotions count:", error)
       }
+
+      setIsLoadingData(false)
     }
 
     fetchUserData()
-  }, [user, router, toast])
+  }, [user])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      setImageFile(file)
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files)
 
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          setImagePreview(e.target.result as string)
-        }
+      // Check if adding these files would exceed the limit
+      if (imageFiles.length + newFiles.length > MAX_IMAGES) {
+        toast({
+          variant: "destructive",
+          title: "Too many images",
+          description: `You can only upload up to ${MAX_IMAGES} images per promotion.`,
+        })
+        return
       }
-      reader.readAsDataURL(file)
+
+      // Add new files to the existing ones
+      const updatedFiles = [...imageFiles, ...newFiles]
+      setImageFiles(updatedFiles)
+
+      // Generate preview URLs for all files
+      const newPreviewUrls = newFiles.map((file) => URL.createObjectURL(file))
+      setImagePreviewUrls((prev) => [...prev, ...newPreviewUrls])
     }
   }
 
-  const removeImage = () => {
-    setImageFile(null)
-    setImagePreview(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
+  const removeImage = (index: number) => {
+    // Remove the file and its preview URL
+    const newFiles = [...imageFiles]
+    newFiles.splice(index, 1)
+    setImageFiles(newFiles)
+
+    const newPreviewUrls = [...imagePreviewUrls]
+    // Revoke the object URL to avoid memory leaks
+    URL.revokeObjectURL(newPreviewUrls[index])
+    newPreviewUrls.splice(index, 1)
+    setImagePreviewUrls(newPreviewUrls)
+  }
+
+  // Replace the existing handleAddressChange function with this improved version:
+  const handleAddressChange = async (newAddress: string, place?: any) => {
+    console.log("handleAddressChange called with:", { newAddress, place })
+    setAddress(newAddress)
+
+    // Reset previous location data
+    setPlaceData(null)
+    setGeoPoint(null)
+
+    // Since we don't have access to Google Maps API, we'll just store the address as text
+    // The app will work without coordinates
+    console.log("Address stored as text only:", newAddress)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -127,7 +177,8 @@ export default function NewPromotionPage() {
       return
     }
 
-    if (reachedLimit) {
+    // Double-check the limit before submitting
+    if (existingPromotions.length >= MAX_PROMOTIONS) {
       toast({
         variant: "destructive",
         title: "Promotion limit reached",
@@ -148,49 +199,73 @@ export default function NewPromotionPage() {
     setIsLoading(true)
 
     try {
-      let imageURL = ""
+      let imageURLs: string[] = []
 
-      if (imageFile) {
+      // Upload all images if there are any
+      if (imageFiles.length > 0) {
         try {
-          // Use the promotions folder for promotion images
-          const storageRef = ref(
-            storage,
-            `promotions/${user.uid}/${Date.now()}_${imageFile.name.replace(/[^a-zA-Z0-9.]/g, "_")}`,
-          )
-          await uploadBytes(storageRef, imageFile)
-          imageURL = await getDownloadURL(storageRef)
+          // Upload each image and collect the URLs
+          const uploadPromises = imageFiles.map(async (file) => {
+            const storageRef = ref(
+              storage,
+              `promotions/${user.uid}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`,
+            )
+            await uploadBytes(storageRef, file)
+            return getDownloadURL(storageRef)
+          })
+
+          imageURLs = await Promise.all(uploadPromises)
         } catch (uploadError: any) {
-          console.error("Error uploading image:", uploadError)
+          console.error("Error uploading images:", uploadError)
           toast({
             variant: "destructive",
             title: "Image upload failed",
-            description: "Your promotion will be created without an image. You can edit it later to add an image.",
+            description: "Your promotion will be created without images. You can edit it later to add images.",
           })
-          // Continue without the image
+          // Continue without the images
         }
       }
 
-      const promotionData = {
+      // Create the promotion data object
+      const promotionData: any = {
         business_id: user.uid,
         title,
         category,
         description,
         address,
         ...(expirationDate && { expiration_date: expirationDate.toISOString() }),
-        ...(imageURL && { image_url: imageURL }),
+        ...(imageURLs.length > 0 && {
+          image_url: imageURLs[0], // For backward compatibility
+          image_urls: imageURLs,
+        }),
         status: "live", // Set to live immediately - no review needed
         created_at: new Date().toISOString(),
         views: 0,
         clicks: 0,
       }
 
+      // Add location data if available - store as GeoPoint named "location"
+      if (geoPoint) {
+        console.log("🎯 Adding GeoPoint as location field:", geoPoint)
+        promotionData.location = geoPoint
+
+        // Store the formatted address if available
+        if (placeData?.formatted_address) {
+          promotionData.formatted_address = placeData.formatted_address
+        }
+      } else if (address) {
+        // If we have an address but no coordinates, still store the address
+        console.log("📝 Storing address without coordinates")
+        promotionData.address = address
+      }
+
+      console.log("🚀 Creating new promotion with data:", promotionData)
+
       // Add promotion to Firestore
-      await addDoc(collection(db, "promotions"), promotionData)
+      const docRef = await addDoc(collection(db, "promotions"), promotionData)
+      console.log("✅ Promotion created with ID:", docRef.id)
 
       // Try to update the user's promotion count
-      let updated = false
-
-      // First try business_users collection
       try {
         const businessRef = doc(db, "business_users", user.uid)
         const businessDoc = await getDoc(businessRef)
@@ -200,28 +275,11 @@ export default function NewPromotionPage() {
           await updateDoc(businessRef, {
             promotions_used: (businessData.promotions_used || 0) + 1,
           })
-          updated = true
+          console.log("Updated user's promotion count")
         }
       } catch (error) {
-        console.log("Could not update business_users, trying businesses collection")
-      }
-
-      // If that failed, try the businesses collection
-      if (!updated) {
-        try {
-          const businessRef = doc(db, "businesses", user.uid)
-          const businessDoc = await getDoc(businessRef)
-
-          if (businessDoc.exists()) {
-            const businessData = businessDoc.data()
-            await updateDoc(businessRef, {
-              promotions_used: (businessData.promotions_used || businessData.promotionsUsed || 0) + 1,
-            })
-          }
-        } catch (error) {
-          console.error("Could not update promotion count:", error)
-          // Continue anyway, the promotion was created
-        }
+        console.error("Could not update promotion count:", error)
+        // Continue anyway, the promotion was created
       }
 
       toast({
@@ -231,6 +289,7 @@ export default function NewPromotionPage() {
 
       router.push("/dashboard/promotions")
     } catch (error: any) {
+      console.error("Failed to create promotion:", error)
       toast({
         variant: "destructive",
         title: "Failed to create promotion",
@@ -328,22 +387,31 @@ export default function NewPromotionPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="123 Main St, City, State, ZIP"
-                    disabled={reachedLimit}
-                  />
-                </div>
+                <AddressAutocomplete value={address} onChange={handleAddressChange} disabled={reachedLimit} />
+
+                {/* Debug info for location data */}
+                {(placeData || geoPoint) && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm">
+                    <div className="font-medium text-green-800 mb-1">📍 Location Data Detected:</div>
+                    {placeData && (
+                      <div className="text-green-700">
+                        Coordinates: {placeData.lat.toFixed(6)}, {placeData.lng.toFixed(6)}
+                      </div>
+                    )}
+                    {geoPoint && (
+                      <div className="text-green-700">
+                        GeoPoint: {geoPoint.latitude.toFixed(6)}, {geoPoint.longitude.toFixed(6)}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="expirationDate">Expiration Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
+                        type="button"
                         variant="outline"
                         className="w-full justify-start text-left font-normal"
                         disabled={reachedLimit}
@@ -365,44 +433,38 @@ export default function NewPromotionPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Promotion Image</Label>
+                  <Label>Promotion Images (Up to {MAX_IMAGES})</Label>
+
+                  {imagePreviewUrls.length > 0 && (
+                    <div className="mb-4">
+                      <ImageCarousel images={imagePreviewUrls} onRemoveImage={removeImage} editable={true} />
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-4">
-                    {imagePreview ? (
-                      <div className="relative">
-                        <img
-                          src={imagePreview || "/placeholder.svg"}
-                          alt="Promotion preview"
-                          className="w-24 h-24 object-cover rounded-lg"
-                        />
-                        <button
-                          type="button"
-                          onClick={removeImage}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
-                          disabled={reachedLimit}
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div
-                        onClick={() => !reachedLimit && fileInputRef.current?.click()}
-                        className={`w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center ${
-                          !reachedLimit ? "cursor-pointer hover:border-[#6A0DAD]" : "opacity-50"
-                        }`}
-                      >
-                        <Upload className="h-6 w-6 text-gray-400" />
-                        <span className="text-xs text-gray-500 mt-1">Upload</span>
-                      </div>
-                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => !reachedLimit && fileInputRef.current?.click()}
+                      disabled={reachedLimit || imageFiles.length >= MAX_IMAGES}
+                      className="flex items-center gap-2"
+                    >
+                      <ImagePlus className="h-4 w-4" />
+                      {imageFiles.length === 0 ? "Add Images" : "Add More Images"}
+                      <span className="text-xs text-muted-foreground">
+                        ({imageFiles.length}/{MAX_IMAGES})
+                      </span>
+                    </Button>
                     <input
                       type="file"
                       ref={fileInputRef}
                       onChange={handleImageChange}
                       accept="image/*"
+                      multiple
                       className="hidden"
-                      disabled={reachedLimit}
+                      disabled={reachedLimit || imageFiles.length >= MAX_IMAGES}
                     />
-                    <div className="text-sm text-gray-500">Upload a JPG or PNG image for your promotion</div>
+                    <div className="text-sm text-gray-500">Upload JPG or PNG images for your promotion</div>
                   </div>
                 </div>
 
@@ -435,17 +497,13 @@ export default function NewPromotionPage() {
             <CardContent className="p-6">
               <h3 className="font-medium mb-4">Live Preview</h3>
               <div className="border rounded-lg overflow-hidden">
-                <div className="aspect-video bg-gray-100 flex items-center justify-center">
-                  {imagePreview ? (
-                    <img
-                      src={imagePreview || "/placeholder.svg"}
-                      alt="Promotion preview"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
+                {imagePreviewUrls.length > 0 ? (
+                  <ImageCarousel images={imagePreviewUrls} />
+                ) : (
+                  <div className="aspect-video bg-gray-100 flex items-center justify-center">
                     <Tag className="h-12 w-12 text-gray-400" />
-                  )}
-                </div>
+                  </div>
+                )}
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-1">
                     <Tag className="h-4 w-4 text-gray-500" />

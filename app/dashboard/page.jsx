@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { auth, db } from "@/lib/firebase"
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore"
+import { collection, query, where, getDocs } from "firebase/firestore"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { PlusCircle, TrendingUp, Settings, Calendar } from "lucide-react"
 
 export default function Dashboard() {
-  const [businessName, setBusinessName] = useState("")
   const [activePromotions, setActivePromotions] = useState(0)
   const [loading, setLoading] = useState(true)
 
@@ -19,39 +18,20 @@ export default function Dashboard() {
         const user = auth.currentUser
         if (!user) return
 
-        // Try to get data from business_users collection first
+        // Count active promotions
         try {
-          const userDoc = await getDoc(doc(db, "business_users", user.uid))
-          if (userDoc.exists()) {
-            const userData = userDoc.data()
-            setBusinessName(userData.business_name || userData.businessName || "Your Business")
-
-            // Count active promotions
-            const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
-            const promotionsSnapshot = await getDocs(promotionsQuery)
-            setActivePromotions(promotionsSnapshot.size)
-            setLoading(false)
-            return
-          }
+          const promotionsQuery = query(
+            collection(db, "promotions"),
+            where("business_id", "==", user.uid),
+            where("status", "==", "live"),
+          )
+          const promotionsSnapshot = await getDocs(promotionsQuery)
+          setActivePromotions(promotionsSnapshot.size)
         } catch (error) {
-          console.error("Error fetching from business_users:", error)
+          console.error("Error fetching promotions count:", error)
         }
 
-        // Fallback to businesses collection
-        try {
-          const businessDoc = await getDoc(doc(db, "businesses", user.uid))
-          if (businessDoc.exists()) {
-            const businessData = businessDoc.data()
-            setBusinessName(businessData.business_name || businessData.businessName || "Your Business")
-
-            // Count active promotions
-            const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
-            const promotionsSnapshot = await getDocs(promotionsQuery)
-            setActivePromotions(promotionsSnapshot.size)
-          }
-        } catch (error) {
-          console.error("Error fetching from businesses:", error)
-        }
+        setLoading(false)
       } catch (error) {
         console.error("Error fetching business data:", error)
       } finally {
@@ -73,7 +53,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between space-y-2 md:flex-row md:items-center md:space-y-0">
-        <h2 className="text-3xl font-bold tracking-tight">Welcome, {businessName}!</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Welcome to Evertwine Business!</h2>
         <div className="flex items-center space-x-2">
           <Link href="/dashboard/promotions/new">
             <Button className="bg-[#6A0DAD] hover:bg-[#5a0b93]">

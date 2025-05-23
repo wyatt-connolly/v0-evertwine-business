@@ -8,6 +8,7 @@ import { doc, getDoc, updateDoc, increment } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Card, CardContent } from "@/components/ui/card"
 import { format } from "date-fns"
+import { ImageCarousel } from "@/components/image-carousel"
 
 export default function PromotionDetailsPage({ params }: { params: { id: string } }) {
   const [promotion, setPromotion] = useState<any>(null)
@@ -114,6 +115,14 @@ export default function PromotionDetailsPage({ params }: { params: { id: string 
     )
   }
 
+  // Get all images for the carousel
+  const promotionImages =
+    promotion.image_urls && Array.isArray(promotion.image_urls)
+      ? promotion.image_urls
+      : promotion.image_url
+        ? [promotion.image_url]
+        : []
+
   return (
     <div className="min-h-screen bg-[#F9FAFB]">
       <div className="max-w-2xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
@@ -123,14 +132,8 @@ export default function PromotionDetailsPage({ params }: { params: { id: string 
         </Button>
 
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          {promotion.imageURL ? (
-            <div className="aspect-video w-full">
-              <img
-                src={promotion.imageURL || "/placeholder.svg"}
-                alt={promotion.title}
-                className="w-full h-full object-cover"
-              />
-            </div>
+          {promotionImages.length > 0 ? (
+            <ImageCarousel images={promotionImages} />
           ) : (
             <div className="aspect-video w-full bg-gray-200 flex items-center justify-center">
               <span className="text-gray-400 text-lg">No image available</span>
