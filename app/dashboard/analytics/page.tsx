@@ -3,22 +3,118 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts"
-import { collection, query, where, getDocs } from "firebase/firestore"
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts"
+import { collection, query, where, getDocs, orderBy, limit, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/contexts/auth-context"
-import { Loader2 } from "lucide-react"
+import { Loader2, RefreshCw } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 export default function AnalyticsPage() {
   const { user } = useAuth()
   const [period, setPeriod] = useState("7d")
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [promotions, setPromotions] = useState<any[]>([])
   const [totalViews, setTotalViews] = useState(0)
   const [totalClicks, setTotalClicks] = useState(0)
   const [ctr, setCtr] = useState(0)
   const [viewsData, setViewsData] = useState<any[]>([])
   const [clicksData, setClicksData] = useState<any[]>([])
+  const [qrCodeData, setQrCodeData] = useState<any[]>([])
+  const [qrCodeStats, setQrCodeStats] = useState({
+    shown: 0,
+    redeemed: 0,
+    conversionRate: 0,
+  })
+
+  // Function to fetch QR code interaction data
+  const fetchQrCodeData = async () => {
+    if (!user) return
+
+    try {
+      // Get QR code interactions from Firestore
+      const qrInteractionsRef = collection(db, "qr_interactions")
+      const qrQuery = query(
+        qrInteractionsRef,
+        where("business_id", "==", user.uid),
+        orderBy("timestamp", "desc"),
+        limit(100),
+      )
+
+      // Set up real-time listener for QR code interactions
+      const unsubscribe = onSnapshot(qrQuery, (snapshot) => {
+        const interactions = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+
+        // Count shown and redeemed QR codes
+        const shown = interactions.filter((item) => item.action === "shown").length
+        const redeemed = interactions.filter((item) => item.action === "redeemed").length
+        const conversionRate = shown > 0 ? Math.round((redeemed / shown) * 100) : 0
+
+        setQrCodeStats({
+          shown,
+          redeemed,
+          conversionRate,
+        })
+
+        // Process data for chart - group by day
+        const last7Days = getLast7Days()
+        const chartData = last7Days.map((date) => {
+          const dayStr = date.toISOString().split("T")[0]
+          const dayInteractions = interactions.filter((item) => {
+            const itemDate = new Date(item.timestamp.seconds * 1000)
+            return itemDate.toISOString().split("T")[0] === dayStr
+          })
+
+          return {
+            date: formatDate(date),
+            shown: dayInteractions.filter((item) => item.action === "shown").length,
+            redeemed: dayInteractions.filter((item) => item.action === "redeemed").length,
+          }
+        })
+
+        setQrCodeData(chartData)
+      })
+
+      // Clean up listener on component unmount
+      return unsubscribe
+    } catch (error) {
+      console.error("Error fetching QR code data:", error)
+    }
+  }
+
+  // Helper function to get last 7 days
+  const getLast7Days = () => {
+    const result = []
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date()
+      date.setDate(date.getDate() - i)
+      result.push(date)
+    }
+    return result
+  }
+
+  // Helper function to format date
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  }
 
   useEffect(() => {
     const fetchPromotions = async () => {
@@ -80,7 +176,23 @@ export default function AnalyticsPage() {
     }
 
     fetchPromotions()
+
+    // Set up QR code data listener
+    const unsubscribe = fetchQrCodeData()
+
+    // Clean up listener on component unmount
+    return () => {
+      if (unsubscribe) unsubscribe()
+    }
   }, [user])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await fetchQrCodeData()
+    setTimeout(() => {
+      setRefreshing(false)
+    }, 1000)
+  }
 
   if (loading) {
     return (
@@ -89,6 +201,9 @@ export default function AnalyticsPage() {
       </div>
     )
   }
+
+  // Custom colors for QR code chart
+  const QR_COLORS = ["#6A0DAD", "#9333EA"]
 
   return (
     <div className="space-y-6">
@@ -100,8 +215,10 @@ export default function AnalyticsPage() {
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="qr-codes">QR Codes</TabsTrigger>
           <TabsTrigger value="promotions">Promotions</TabsTrigger>
         </TabsList>
+
         <TabsContent value="overview" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
@@ -196,6 +313,150 @@ export default function AnalyticsPage() {
             </Card>
           </div>
         </TabsContent>
+
+        <TabsContent value="qr-codes" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">QR Code Analytics</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              Refresh Data
+            </Button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">QR Codes Shown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{qrCodeStats.shown}</div>
+                <p className="text-xs text-muted-foreground">Total times QR codes were displayed</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">QR Codes Redeemed</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{qrCodeStats.redeemed}</div>
+                <p className="text-xs text-muted-foreground">Total successful redemptions</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{qrCodeStats.conversionRate}%</div>
+                <p className="text-xs text-muted-foreground">Percentage of shown codes that were redeemed</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>QR Code Interactions</CardTitle>
+                <CardDescription>Daily shown vs. redeemed QR codes</CardDescription>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={qrCodeData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="shown" name="QR Shown" fill="#6A0DAD" />
+                      <Bar dataKey="redeemed" name="QR Redeemed" fill="#9333EA" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>QR Code Distribution</CardTitle>
+                <CardDescription>Shown vs. redeemed ratio</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: "Shown", value: qrCodeStats.shown - qrCodeStats.redeemed },
+                          { name: "Redeemed", value: qrCodeStats.redeemed },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {[0, 1].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={QR_COLORS[index % QR_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>QR Code Performance Insights</CardTitle>
+              <CardDescription>Analysis of your QR code usage and effectiveness</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                  <h3 className="font-medium text-purple-900 dark:text-purple-300 mb-2">Key Insights</h3>
+                  <ul className="list-disc pl-5 space-y-1 text-sm text-purple-800 dark:text-purple-200">
+                    <li>
+                      Your QR codes have been shown {qrCodeStats.shown} times and redeemed {qrCodeStats.redeemed} times
+                    </li>
+                    <li>Your current redemption rate is {qrCodeStats.conversionRate}%</li>
+                    {qrCodeStats.conversionRate < 10 && (
+                      <li>Consider offering more incentives to increase redemption rates</li>
+                    )}
+                    {qrCodeStats.conversionRate >= 10 && qrCodeStats.conversionRate < 30 && (
+                      <li>Your redemption rate is good, but could be improved with better offers</li>
+                    )}
+                    {qrCodeStats.conversionRate >= 30 && (
+                      <li>Excellent redemption rate! Your offers are compelling to customers</li>
+                    )}
+                  </ul>
+                </div>
+
+                <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+                  <h3 className="font-medium text-indigo-900 dark:text-indigo-300 mb-2">Recommendations</h3>
+                  <ul className="list-disc pl-5 space-y-1 text-sm text-indigo-800 dark:text-indigo-200">
+                    <li>Make your QR codes more visible in your physical location</li>
+                    <li>Add clear instructions on how to redeem QR codes</li>
+                    <li>Consider time-limited offers to create urgency</li>
+                    <li>Test different incentives to see what drives higher redemption rates</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="promotions">
           <Card>
             <CardHeader>

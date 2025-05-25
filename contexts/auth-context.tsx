@@ -14,7 +14,7 @@ import {
   signInWithPopup,
 } from "firebase/auth"
 import { doc, getDoc, setDoc } from "firebase/firestore"
-import { auth, db } from "@/lib/firebase"
+import { getFirebaseServices } from "@/lib/firebase"
 
 // Initialize providers
 const googleProvider = new GoogleAuthProvider()
@@ -54,6 +54,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Sign up function
   const signUp = async (email: string, password: string, userData: any) => {
+    const { auth, db } = await getFirebaseServices()
+
+    if (!auth || !db) {
+      throw new Error("Firebase services not available")
+    }
+
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     await setDoc(doc(db, "business_users", userCredential.user.uid), {
       ...userData,
@@ -69,11 +75,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Sign in function
   const signIn = async (email: string, password: string) => {
+    const { auth } = await getFirebaseServices()
+
+    if (!auth) {
+      throw new Error("Firebase auth not available")
+    }
+
     await signInWithEmailAndPassword(auth, email, password)
   }
 
   // Google sign in function
   const signInWithGoogle = async () => {
+    const { auth, db } = await getFirebaseServices()
+
+    if (!auth || !db) {
+      throw new Error("Firebase services not available")
+    }
+
     const result = await signInWithPopup(auth, googleProvider)
     const user = result.user
 
@@ -99,6 +117,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Facebook sign in function
   const signInWithFacebook = async () => {
+    const { auth, db } = await getFirebaseServices()
+
+    if (!auth || !db) {
+      throw new Error("Firebase services not available")
+    }
+
     const result = await signInWithPopup(auth, facebookProvider)
     const user = result.user
 
@@ -124,42 +148,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Logout function
   const logout = async () => {
+    const { auth } = await getFirebaseServices()
+
+    if (!auth) {
+      throw new Error("Firebase auth not available")
+    }
+
     await signOut(auth)
   }
 
   // Reset password function
   const resetPassword = async (email: string) => {
+    const { auth } = await getFirebaseServices()
+
+    if (!auth) {
+      throw new Error("Firebase auth not available")
+    }
+
     await sendPasswordResetEmail(auth, email)
   }
 
   // Listen for auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser)
+    const initializeAuth = async () => {
+      try {
+        const { auth, db } = await getFirebaseServices()
 
-      if (currentUser) {
-        try {
-          // Get user profile from business_users collection
-          const userDoc = await getDoc(doc(db, "business_users", currentUser.uid))
+        if (!auth) {
+          console.error("Firebase auth not available")
+          setLoading(false)
+          return
+        }
 
-          if (userDoc.exists()) {
-            setUserProfile(userDoc.data())
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+          setUser(currentUser)
+
+          if (currentUser && db) {
+            try {
+              // Get user profile from business_users collection
+              const userDoc = await getDoc(doc(db, "business_users", currentUser.uid))
+
+              if (userDoc.exists()) {
+                setUserProfile(userDoc.data())
+              } else {
+                console.log("No user profile found")
+                setUserProfile(null)
+              }
+            } catch (error) {
+              console.error("Error fetching user profile:", error)
+              setUserProfile(null)
+            }
           } else {
-            console.log("No user profile found")
             setUserProfile(null)
           }
-        } catch (error) {
-          console.error("Error fetching user profile:", error)
-          setUserProfile(null)
-        }
-      } else {
-        setUserProfile(null)
+
+          setLoading(false)
+        })
+
+        return () => unsubscribe()
+      } catch (error) {
+        console.error("Error initializing auth:", error)
+        setLoading(false)
       }
+    }
 
-      setLoading(false)
-    })
-
-    return () => unsubscribe()
+    initializeAuth()
   }, [])
 
   // Create value object

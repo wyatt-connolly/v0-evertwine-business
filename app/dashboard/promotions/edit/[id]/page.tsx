@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Calendar, Tag, MapPin, ImagePlus } from "lucide-react"
-import { doc, updateDoc, getDoc } from "firebase/firestore"
+import { doc, updateDoc, getDoc, GeoPoint } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { db, storage } from "@/lib/firebase"
 import { format } from "date-fns"
@@ -39,6 +39,7 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
   const [description, setDescription] = useState("")
   const [address, setAddress] = useState("")
   const [placeData, setPlaceData] = useState<any>(null)
+  const [geoPoint, setGeoPoint] = useState<GeoPoint | null>(null)
   const [expirationDate, setExpirationDate] = useState<Date | undefined>(undefined)
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
@@ -101,14 +102,21 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
         setTitle(data.title || "")
         setCategory(data.category || "")
         setDescription(data.description || "")
-        setAddress(data.address || "")
+        setAddress(data.address || data.formatted_address || "")
         setStatus(data.status || "live")
 
-        if (data.location) {
+        // Handle enhanced location data
+        if (data.location && data.location.latitude && data.location.longitude) {
+          const existingGeoPoint = new GeoPoint(data.location.latitude, data.location.longitude)
+          setGeoPoint(existingGeoPoint)
+
           setPlaceData({
-            lat: data.location.lat,
-            lng: data.location.lng,
+            place_id: data.place_id,
             formatted_address: data.formatted_address || data.address,
+            name: data.place_name,
+            types: data.place_types,
+            lat: data.location.latitude,
+            lng: data.location.longitude,
           })
         }
 
@@ -181,16 +189,44 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
     setExistingImageUrls(newUrls)
   }
 
+  // Enhanced address change handler for edit page
   const handleAddressChange = (newAddress: string, place?: any) => {
+    console.log("Edit page - handleAddressChange called with:", { newAddress, place })
     setAddress(newAddress)
-    if (place) {
-      setPlaceData({
-        lat: place.geometry?.location?.lat(),
-        lng: place.geometry?.location?.lng(),
-        formatted_address: place.formatted_address,
-      })
+
+    // Reset previous location data
+    setPlaceData(null)
+    setGeoPoint(null)
+
+    if (place && place.geometry && place.geometry.location) {
+      try {
+        // Extract coordinates from Google Places data
+        const lat = typeof place.lat === "number" ? place.lat : place.geometry.location.lat()
+        const lng = typeof place.lng === "number" ? place.lng : place.geometry.location.lng()
+
+        // Create GeoPoint for Firestore
+        const newGeoPoint = new GeoPoint(lat, lng)
+        setGeoPoint(newGeoPoint)
+
+        // Store place data for additional information
+        setPlaceData({
+          place_id: place.place_id,
+          formatted_address: place.formatted_address || newAddress,
+          name: place.name,
+          types: place.types,
+          lat,
+          lng,
+        })
+
+        console.log("🎯 Edit page - Location data updated:", { lat, lng, geoPoint: newGeoPoint })
+      } catch (error) {
+        console.error("Error processing place data on edit:", error)
+        // Still store the address even if we can't get coordinates
+        console.log("📝 Edit page - Storing address without coordinates:", newAddress)
+      }
     } else {
-      setPlaceData(null)
+      // Manual address entry without coordinates
+      console.log("📝 Edit page - Manual address entry without coordinates:", newAddress)
     }
   }
 
@@ -248,18 +284,11 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
       // Combine existing and new image URLs
       const allImageUrls = [...existingImageUrls, ...newImageURLs]
 
-      const promotionData = {
+      const promotionData: any = {
         title,
         category,
         description,
         address,
-        ...(placeData && {
-          location: {
-            lat: placeData.lat,
-            lng: placeData.lng,
-          },
-          formatted_address: placeData.formatted_address,
-        }),
         ...(expirationDate && { expiration_date: expirationDate.toISOString() }),
         ...(allImageUrls.length > 0 && {
           image_url: allImageUrls[0], // For backward compatibility
@@ -268,6 +297,20 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
         updated_at: new Date().toISOString(),
         // Always keep status as live
         status: "live",
+      }
+
+      // Add enhanced location data if available
+      if (geoPoint && placeData) {
+        console.log("🎯 Edit page - Adding enhanced location data:", { geoPoint, placeData })
+        promotionData.location = geoPoint
+        promotionData.place_id = placeData.place_id
+        promotionData.formatted_address = placeData.formatted_address
+        promotionData.place_name = placeData.name
+        promotionData.place_types = placeData.types
+      } else if (address) {
+        // If we have an address but no coordinates, still store the address
+        console.log("📝 Edit page - Storing address without enhanced location data")
+        promotionData.address = address
       }
 
       console.log("Updating promotion with data:", promotionData)
@@ -371,7 +414,34 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
                   />
                 </div>
 
-                <AddressAutocomplete value={address} onChange={handleAddressChange} />
+                <AddressAutocomplete
+                  value={address}
+                  onChange={handleAddressChange}
+                  placeholder="Click to enter your business address..."
+                  label="Business Address"
+                />
+
+                {/* Enhanced debug info for location data */}
+                {(placeData || geoPoint) && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm">
+                    <div className="font-medium text-green-800 mb-1">📍 Enhanced Location Data:</div>
+                    {placeData && (
+                      <div className="text-green-700 space-y-1">
+                        <div>📍 Place: {placeData.name || "N/A"}</div>
+                        <div>🏷️ Place ID: {placeData.place_id}</div>
+                        <div>
+                          📍 Coordinates: {placeData.lat?.toFixed(6)}, {placeData.lng?.toFixed(6)}
+                        </div>
+                        <div>🏢 Types: {placeData.types?.join(", ") || "N/A"}</div>
+                      </div>
+                    )}
+                    {geoPoint && (
+                      <div className="text-green-700">
+                        🗺️ GeoPoint: {geoPoint.latitude.toFixed(6)}, {geoPoint.longitude.toFixed(6)}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="expirationDate">Expiration Date</Label>
