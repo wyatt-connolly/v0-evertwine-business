@@ -15,27 +15,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Home, BarChart2, Tag, Settings, Menu, X, LogOut, User, Bell, Plus, HelpCircle } from "lucide-react"
+import { Home, BarChart2, Tag, Settings, Menu, X, LogOut, User, Bell, Plus } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import FirebaseError from "@/components/firebase-error"
 import { firebaseInitError } from "@/lib/firebase"
+import { collection, query, where, getDocs } from "firebase/firestore"
+import { db } from "@/lib/firebase"
 
 export default function DashboardLayout({ children }) {
   const { user, userProfile, loading } = useAuthState()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login")
-    }
-  }, [user, loading, router])
-
-  // If Firebase initialization failed, show error component
-  if (firebaseInitError) {
-    return <FirebaseError />
-  }
+  const [promotionsCount, setPromotionsCount] = useState(0)
 
   const handleLogout = async () => {
     try {
@@ -44,6 +36,38 @@ export default function DashboardLayout({ children }) {
     } catch (error) {
       console.error("Error logging out:", error)
     }
+  }
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+    }
+  }, [user, loading, router])
+
+  useEffect(() => {
+    const fetchPromotionsCount = async () => {
+      if (!user) return
+
+      try {
+        const promotionsQuery = query(
+          collection(db, "promotions"),
+          where("business_id", "==", user.uid),
+          where("status", "==", "live"),
+        )
+        const promotionsSnapshot = await getDocs(promotionsQuery)
+        setPromotionsCount(promotionsSnapshot.docs.length)
+      } catch (error) {
+        console.error("Error fetching promotions count:", error)
+        setPromotionsCount(0)
+      }
+    }
+
+    fetchPromotionsCount()
+  }, [user])
+
+  // If Firebase initialization failed, show error component
+  if (firebaseInitError) {
+    return <FirebaseError />
   }
 
   const navigation = [
@@ -58,7 +82,7 @@ export default function DashboardLayout({ children }) {
       href: "/dashboard/promotions",
       icon: Tag,
       description: "Manage your promotions",
-      badge: "2",
+      badge: promotionsCount > 0 ? promotionsCount.toString() : undefined,
     },
     {
       name: "Analytics",
@@ -73,6 +97,8 @@ export default function DashboardLayout({ children }) {
       description: "Account preferences",
     },
   ]
+
+  const currentPage = navigation.find((item) => item.href === pathname)
 
   if (loading) {
     return (
@@ -95,8 +121,6 @@ export default function DashboardLayout({ children }) {
     return null
   }
 
-  const currentPage = navigation.find((item) => item.href === pathname)
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800">
       {/* Mobile sidebar */}
@@ -116,7 +140,7 @@ export default function DashboardLayout({ children }) {
                 </button>
               </div>
               <div className="flex-1 flex flex-col overflow-y-auto py-4">
-                <nav className="flex-1 px-4 space-y-2">
+                <nav className="flex-1 px-3 space-y-2">
                   {navigation.map((item) => (
                     <Link
                       key={item.name}
@@ -144,7 +168,7 @@ export default function DashboardLayout({ children }) {
                   ))}
                 </nav>
 
-                <div className="px-4 mt-6">
+                <div className="px-3 mt-6">
                   <Button
                     onClick={() => router.push("/dashboard/promotions/new")}
                     className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg"
@@ -234,11 +258,6 @@ export default function DashboardLayout({ children }) {
             </div>
 
             <div className="ml-4 flex items-center gap-3">
-              {/* Help */}
-              <Button variant="ghost" size="icon" className="h-9 w-9">
-                <HelpCircle className="h-4 w-4" />
-              </Button>
-
               {/* Notifications */}
               <Button variant="ghost" size="icon" className="h-9 w-9 relative">
                 <Bell className="h-4 w-4" />

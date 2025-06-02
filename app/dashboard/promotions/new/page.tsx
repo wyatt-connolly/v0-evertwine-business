@@ -1,7 +1,5 @@
 "use client"
 
-console.log("Rendering NEW promotion page")
-
 import type React from "react"
 // Define Google Maps types locally
 declare global {
@@ -54,20 +52,45 @@ export default function NewPromotionPage() {
   const pathname = usePathname()
   const { toast } = useToast()
 
-  // Debug the current path
   useEffect(() => {
-    console.log("Current pathname:", pathname)
-    console.log("This should be the NEW promotion page")
-  }, [pathname])
+    const checkSubscription = async () => {
+      if (!user) return
 
-  useEffect(() => {
+      try {
+        const userDoc = await getDoc(doc(db, "business_users", user.uid))
+        if (userDoc.exists()) {
+          const userData = userDoc.data()
+          const subscriptionStatus = userData.subscription_status
+          const subscriptionEnd = userData.subscription_end
+
+          if (subscriptionStatus !== "active" || !subscriptionEnd || new Date(subscriptionEnd) <= new Date()) {
+            toast({
+              variant: "destructive",
+              title: "Subscription Required",
+              description: "You need an active subscription to create promotions.",
+            })
+            router.push("/dashboard/billing")
+            return
+          }
+        } else {
+          router.push("/dashboard/billing")
+          return
+        }
+      } catch (error) {
+        console.error("Error checking subscription:", error)
+        router.push("/dashboard/billing")
+        return
+      }
+
+      // Continue with existing fetchUserData logic...
+      fetchUserData()
+    }
+
     const fetchUserData = async () => {
       if (!user) {
         setIsLoadingData(false)
         return
       }
-
-      console.log("Fetching user data for NEW promotion page")
 
       try {
         // Get user data from business_users collection
@@ -102,8 +125,6 @@ export default function NewPromotionPage() {
         // Only set reached limit if we actually have MAX_PROMOTIONS or more
         const hasReachedLimit = promotionsData.length >= MAX_PROMOTIONS
         setReachedLimit(hasReachedLimit)
-
-        console.log(`Found ${promotionsData.length} promotions, limit reached: ${hasReachedLimit}`)
       } catch (error) {
         console.error("Error fetching promotions count:", error)
       }
@@ -111,8 +132,8 @@ export default function NewPromotionPage() {
       setIsLoadingData(false)
     }
 
-    fetchUserData()
-  }, [user])
+    checkSubscription()
+  }, [user, router, toast])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -151,44 +172,32 @@ export default function NewPromotionPage() {
     setImagePreviewUrls(newPreviewUrls)
   }
 
-  // Enhanced address change handler with Google Places integration
   const handleAddressChange = async (newAddress: string, place?: any) => {
-    console.log("handleAddressChange called with:", { newAddress, place })
     setAddress(newAddress)
 
     // Reset previous location data
     setPlaceData(null)
     setGeoPoint(null)
 
-    if (place && place.geometry && place.geometry.location) {
+    if (place && place.lat && place.lng) {
       try {
-        // Extract coordinates from Google Places data
-        const lat = typeof place.lat === "number" ? place.lat : place.geometry.location.lat()
-        const lng = typeof place.lng === "number" ? place.lng : place.geometry.location.lng()
-
         // Create GeoPoint for Firestore
-        const newGeoPoint = new GeoPoint(lat, lng)
+        const newGeoPoint = new GeoPoint(place.lat, place.lng)
         setGeoPoint(newGeoPoint)
 
-        // Store place data for additional information
+        // Store enhanced place data
         setPlaceData({
           place_id: place.place_id,
           formatted_address: place.formatted_address || newAddress,
           name: place.name,
           types: place.types,
-          lat,
-          lng,
+          lat: place.lat,
+          lng: place.lng,
+          location_name: place.location_name,
         })
-
-        console.log("🎯 Location data set:", { lat, lng, geoPoint: newGeoPoint })
       } catch (error) {
         console.error("Error processing place data:", error)
-        // Still store the address even if we can't get coordinates
-        console.log("📝 Storing address without coordinates:", newAddress)
       }
-    } else {
-      // Manual address entry without coordinates
-      console.log("📝 Manual address entry without coordinates:", newAddress)
     }
   }
 
@@ -273,23 +282,18 @@ export default function NewPromotionPage() {
 
       // Add enhanced location data if available
       if (geoPoint && placeData) {
-        console.log("🎯 Adding enhanced location data:", { geoPoint, placeData })
         promotionData.location = geoPoint
-        promotionData.place_id = placeData.place_id
-        promotionData.formatted_address = placeData.formatted_address
-        promotionData.place_name = placeData.name
-        promotionData.place_types = placeData.types
+        if (placeData.place_id) promotionData.place_id = placeData.place_id
+        if (placeData.formatted_address) promotionData.formatted_address = placeData.formatted_address
+        if (placeData.name) promotionData.place_name = placeData.name
+        if (placeData.types && placeData.types.length > 0) promotionData.place_types = placeData.types
+        if (placeData.location_name) promotionData.location_name = placeData.location_name
       } else if (address) {
-        // If we have an address but no coordinates, still store the address
-        console.log("📝 Storing address without enhanced location data")
         promotionData.address = address
       }
 
-      console.log("🚀 Creating new promotion with data:", promotionData)
-
       // Add promotion to Firestore
       const docRef = await addDoc(collection(db, "promotions"), promotionData)
-      console.log("✅ Promotion created with ID:", docRef.id)
 
       // Try to update the user's promotion count
       try {
@@ -301,7 +305,6 @@ export default function NewPromotionPage() {
           await updateDoc(businessRef, {
             promotions_used: (businessData.promotions_used || 0) + 1,
           })
-          console.log("Updated user's promotion count")
         }
       } catch (error) {
         console.error("Could not update promotion count:", error)
@@ -420,28 +423,6 @@ export default function NewPromotionPage() {
                   placeholder="Click to enter your business address..."
                   label="Business Address"
                 />
-
-                {/* Enhanced debug info for location data */}
-                {(placeData || geoPoint) && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm">
-                    <div className="font-medium text-green-800 mb-1">📍 Enhanced Location Data Detected:</div>
-                    {placeData && (
-                      <div className="text-green-700 space-y-1">
-                        <div>📍 Place: {placeData.name || "N/A"}</div>
-                        <div>🏷️ Place ID: {placeData.place_id}</div>
-                        <div>
-                          📍 Coordinates: {placeData.lat?.toFixed(6)}, {placeData.lng?.toFixed(6)}
-                        </div>
-                        <div>🏢 Types: {placeData.types?.join(", ") || "N/A"}</div>
-                      </div>
-                    )}
-                    {geoPoint && (
-                      <div className="text-green-700">
-                        🗺️ GeoPoint: {geoPoint.latitude.toFixed(6)}, {geoPoint.longitude.toFixed(6)}
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="expirationDate">Expiration Date</Label>

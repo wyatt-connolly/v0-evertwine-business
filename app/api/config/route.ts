@@ -5,6 +5,7 @@ export async function GET() {
     // Get all configuration from server-side environment variables
     const config = {
       googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+      stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
       firebaseConfig: {
         apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
         authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -19,6 +20,7 @@ export async function GET() {
     const missingConfig = []
 
     if (!config.googleMapsApiKey) missingConfig.push("Google Maps API Key")
+    if (!config.stripePublishableKey) missingConfig.push("Stripe Publishable Key")
     if (!config.firebaseConfig.apiKey) missingConfig.push("Firebase API Key")
     if (!config.firebaseConfig.authDomain) missingConfig.push("Firebase Auth Domain")
     if (!config.firebaseConfig.projectId) missingConfig.push("Firebase Project ID")

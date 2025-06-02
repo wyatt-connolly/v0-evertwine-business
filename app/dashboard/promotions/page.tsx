@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Eye,
   MousePointerClick,
+  CreditCard,
 } from "lucide-react"
 import {
   AlertDialog,
@@ -32,7 +33,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/components/ui/use-toast"
-import { collection, query, where, getDocs, doc, deleteDoc } from "firebase/firestore"
+import { collection, query, where, getDocs, doc, deleteDoc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -45,6 +46,15 @@ const categoryIcons: Record<string, any> = {
   Other: Coffee,
 }
 
+// Category placeholder images
+const categoryPlaceholders: Record<string, string> = {
+  Restaurant: "/placeholder.svg?height=200&width=300&text=Restaurant",
+  Spa: "/placeholder.svg?height=200&width=300&text=Spa",
+  Retail: "/placeholder.svg?height=200&width=300&text=Retail",
+  Entertainment: "/placeholder.svg?height=200&width=300&text=Entertainment",
+  Other: "/placeholder.svg?height=200&width=300&text=Business",
+}
+
 const MAX_PROMOTIONS = 2
 
 export default function PromotionsPage() {
@@ -53,8 +63,41 @@ export default function PromotionsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false)
+  const [checkingSubscription, setCheckingSubscription] = useState(true)
   const router = useRouter()
   const { toast } = useToast()
+
+  const checkSubscriptionStatus = async () => {
+    if (!user) {
+      setCheckingSubscription(false)
+      return
+    }
+
+    try {
+      const userDoc = await getDoc(doc(db, "business_users", user.uid))
+      if (userDoc.exists()) {
+        const userData = userDoc.data()
+        const subscriptionStatus = userData.subscription_status
+        const subscriptionEnd = userData.subscription_end
+
+        if (subscriptionStatus === "active" && subscriptionEnd) {
+          const endDate = new Date(subscriptionEnd)
+          const now = new Date()
+          setHasActiveSubscription(endDate > now)
+        } else {
+          setHasActiveSubscription(false)
+        }
+      } else {
+        setHasActiveSubscription(false)
+      }
+    } catch (error) {
+      console.error("Error checking subscription:", error)
+      setHasActiveSubscription(false)
+    } finally {
+      setCheckingSubscription(false)
+    }
+  }
 
   const fetchPromotions = async () => {
     if (!user) {
@@ -77,7 +120,6 @@ export default function PromotionsPage() {
         .filter((promo) => promo.status === "live")
 
       setPromotions(promotionsData)
-      console.log(`Found ${promotionsData.length} live promotions`)
     } catch (error: any) {
       console.error("Error fetching promotions:", error)
       setError(error.message || "Failed to load promotions")
@@ -92,6 +134,7 @@ export default function PromotionsPage() {
   }
 
   useEffect(() => {
+    checkSubscriptionStatus()
     fetchPromotions()
   }, [user])
 
@@ -114,6 +157,14 @@ export default function PromotionsPage() {
     } finally {
       setDeletingId(null)
     }
+  }
+
+  const handleCreatePromotion = () => {
+    if (!hasActiveSubscription) {
+      router.push("/dashboard/billing")
+      return
+    }
+    router.push("/dashboard/promotions/new")
   }
 
   if (error) {
@@ -145,7 +196,7 @@ export default function PromotionsPage() {
     )
   }
 
-  if (loading) {
+  if (loading || checkingSubscription) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-[#6A0DAD]" />
@@ -163,25 +214,51 @@ export default function PromotionsPage() {
           <p className="text-muted-foreground">Create and manage your business promotions</p>
         </div>
         <Button
-          onClick={() => router.push("/dashboard/promotions/new")}
+          onClick={handleCreatePromotion}
           className="bg-[#6A0DAD] hover:bg-[#5a0b93] w-full sm:w-auto"
           data-walkthrough="create-promotion"
-          disabled={reachedLimit}
+          disabled={reachedLimit && hasActiveSubscription}
         >
-          <Plus className="mr-2 h-4 w-4" />
-          Create New Promotion
+          {!hasActiveSubscription ? (
+            <>
+              <CreditCard className="mr-2 h-4 w-4" />
+              Subscribe to Create
+            </>
+          ) : (
+            <>
+              <Plus className="mr-2 h-4 w-4" />
+              Create New Promotion
+            </>
+          )}
         </Button>
       </div>
 
-      <div className="bg-blue-50 p-4 rounded-lg">
+      {!hasActiveSubscription && (
+        <Alert className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
+          <CreditCard className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+          <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+            <strong>Subscription Required:</strong> You need an active subscription ($25/month) to create and manage
+            promotions.{" "}
+            <Button
+              variant="link"
+              className="p-0 h-auto text-yellow-800 dark:text-yellow-200 underline"
+              onClick={() => router.push("/dashboard/billing")}
+            >
+              Subscribe now
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="bg-blue-50 dark:bg-blue-950/50 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <div className="flex items-center">
-            <span className="font-medium">Promotions:</span>
-            <span className="ml-2">
+            <span className="font-medium text-blue-900 dark:text-blue-100">Promotions:</span>
+            <span className="ml-2 text-blue-800 dark:text-blue-200">
               {promotions.length} of {MAX_PROMOTIONS} used
             </span>
           </div>
-          {reachedLimit && (
+          {reachedLimit && hasActiveSubscription && (
             <div className="w-full sm:w-auto">
               <Alert variant="warning" className="p-2 border-yellow-200 bg-yellow-50">
                 <AlertCircle className="h-4 w-4 text-yellow-600" />
@@ -198,6 +275,7 @@ export default function PromotionsPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {promotions.map((promotion) => {
             const CategoryIcon = categoryIcons[promotion.category] || Tag
+            const placeholderImage = categoryPlaceholders[promotion.category] || categoryPlaceholders.Other
             return (
               <Card key={promotion.id} className="overflow-hidden">
                 <div className="aspect-video w-full relative">
@@ -208,9 +286,11 @@ export default function PromotionsPage() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                      <CategoryIcon className="h-12 w-12 text-gray-400" />
-                    </div>
+                    <img
+                      src={placeholderImage || "/placeholder.svg"}
+                      alt={`${promotion.category} placeholder`}
+                      className="w-full h-full object-cover"
+                    />
                   )}
                   <div className="absolute top-2 right-2">
                     <span
@@ -245,12 +325,18 @@ export default function PromotionsPage() {
                         variant="outline"
                         size="icon"
                         onClick={() => router.push(`/dashboard/promotions/edit/${promotion.id}`)}
+                        disabled={!hasActiveSubscription}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="outline" size="icon" className="text-red-500">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="text-red-500"
+                            disabled={!hasActiveSubscription}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
@@ -285,15 +371,26 @@ export default function PromotionsPage() {
             <Tag className="h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium mb-2">No promotions yet</h3>
             <p className="text-gray-500 text-center max-w-md mb-6">
-              Create your first promotion to attract more customers to your business.
+              {hasActiveSubscription
+                ? "Create your first promotion to attract more customers to your business."
+                : "Subscribe to start creating promotions and attract more customers to your business."}
             </p>
             <Button
-              onClick={() => router.push("/dashboard/promotions/new")}
+              onClick={handleCreatePromotion}
               className="bg-[#6A0DAD] hover:bg-[#5a0b93]"
               data-walkthrough="create-promotion"
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Create New Promotion
+              {!hasActiveSubscription ? (
+                <>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Subscribe to Create
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create New Promotion
+                </>
+              )}
             </Button>
           </CardContent>
         </Card>

@@ -1,7 +1,5 @@
 "use client"
 
-console.log("Rendering EDIT promotion page")
-
 import type React from "react"
 // Define Google Maps types locally
 declare global {
@@ -52,29 +50,18 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
   const pathname = usePathname()
   const { toast } = useToast()
 
-  // Debug the current path
-  useEffect(() => {
-    console.log("Current pathname:", pathname)
-    console.log("This should be the EDIT promotion page")
-    console.log("Promotion ID from params:", params.id)
-  }, [pathname, params.id])
-
   useEffect(() => {
     const fetchPromotionData = async () => {
       if (!user || !params.id) {
-        console.log("No user or promotion ID, redirecting to promotions page")
         router.push("/dashboard/promotions")
         return
       }
-
-      console.log("Fetching promotion data for ID:", params.id)
 
       try {
         const docRef = doc(db, "promotions", params.id)
         const docSnap = await getDoc(docRef)
 
         if (!docSnap.exists()) {
-          console.error("Promotion not found with ID:", params.id)
           toast({
             variant: "destructive",
             title: "Promotion not found",
@@ -85,11 +72,9 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
         }
 
         const data = docSnap.data()
-        console.log("Promotion data retrieved:", data)
 
         // Check if the promotion belongs to the current user
         if (data.business_id !== user.uid) {
-          console.error("Access denied - promotion belongs to another user")
           toast({
             variant: "destructive",
             title: "Access denied",
@@ -131,7 +116,6 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
           setExistingImageUrls([data.image_url])
         }
       } catch (error) {
-        console.error("Error fetching promotion data:", error)
         toast({
           variant: "destructive",
           title: "Error",
@@ -189,44 +173,32 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
     setExistingImageUrls(newUrls)
   }
 
-  // Enhanced address change handler for edit page
   const handleAddressChange = (newAddress: string, place?: any) => {
-    console.log("Edit page - handleAddressChange called with:", { newAddress, place })
     setAddress(newAddress)
 
     // Reset previous location data
     setPlaceData(null)
     setGeoPoint(null)
 
-    if (place && place.geometry && place.geometry.location) {
+    if (place && place.lat && place.lng) {
       try {
-        // Extract coordinates from Google Places data
-        const lat = typeof place.lat === "number" ? place.lat : place.geometry.location.lat()
-        const lng = typeof place.lng === "number" ? place.lng : place.geometry.location.lng()
-
         // Create GeoPoint for Firestore
-        const newGeoPoint = new GeoPoint(lat, lng)
+        const newGeoPoint = new GeoPoint(place.lat, place.lng)
         setGeoPoint(newGeoPoint)
 
-        // Store place data for additional information
+        // Store enhanced place data
         setPlaceData({
           place_id: place.place_id,
           formatted_address: place.formatted_address || newAddress,
           name: place.name,
           types: place.types,
-          lat,
-          lng,
+          lat: place.lat,
+          lng: place.lng,
+          location_name: place.location_name,
         })
-
-        console.log("🎯 Edit page - Location data updated:", { lat, lng, geoPoint: newGeoPoint })
       } catch (error) {
         console.error("Error processing place data on edit:", error)
-        // Still store the address even if we can't get coordinates
-        console.log("📝 Edit page - Storing address without coordinates:", newAddress)
       }
-    } else {
-      // Manual address entry without coordinates
-      console.log("📝 Edit page - Manual address entry without coordinates:", newAddress)
     }
   }
 
@@ -271,7 +243,6 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
 
           newImageURLs = await Promise.all(uploadPromises)
         } catch (uploadError: any) {
-          console.error("Error uploading images:", uploadError)
           toast({
             variant: "destructive",
             title: "Image upload failed",
@@ -301,23 +272,18 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
 
       // Add enhanced location data if available
       if (geoPoint && placeData) {
-        console.log("🎯 Edit page - Adding enhanced location data:", { geoPoint, placeData })
         promotionData.location = geoPoint
-        promotionData.place_id = placeData.place_id
-        promotionData.formatted_address = placeData.formatted_address
-        promotionData.place_name = placeData.name
-        promotionData.place_types = placeData.types
+        if (placeData.place_id) promotionData.place_id = placeData.place_id
+        if (placeData.formatted_address) promotionData.formatted_address = placeData.formatted_address
+        if (placeData.name) promotionData.place_name = placeData.name
+        if (placeData.types && placeData.types.length > 0) promotionData.place_types = placeData.types
+        if (placeData.location_name) promotionData.location_name = placeData.location_name
       } else if (address) {
-        // If we have an address but no coordinates, still store the address
-        console.log("📝 Edit page - Storing address without enhanced location data")
         promotionData.address = address
       }
 
-      console.log("Updating promotion with data:", promotionData)
-
       // Update promotion in Firestore
       await updateDoc(doc(db, "promotions", params.id), promotionData)
-      console.log("Promotion updated successfully")
 
       toast({
         title: "Promotion updated",
@@ -326,7 +292,6 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
 
       router.push("/dashboard/promotions")
     } catch (error: any) {
-      console.error("Failed to update promotion:", error)
       toast({
         variant: "destructive",
         title: "Failed to update promotion",
@@ -420,28 +385,6 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
                   placeholder="Click to enter your business address..."
                   label="Business Address"
                 />
-
-                {/* Enhanced debug info for location data */}
-                {(placeData || geoPoint) && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm">
-                    <div className="font-medium text-green-800 mb-1">📍 Enhanced Location Data:</div>
-                    {placeData && (
-                      <div className="text-green-700 space-y-1">
-                        <div>📍 Place: {placeData.name || "N/A"}</div>
-                        <div>🏷️ Place ID: {placeData.place_id}</div>
-                        <div>
-                          📍 Coordinates: {placeData.lat?.toFixed(6)}, {placeData.lng?.toFixed(6)}
-                        </div>
-                        <div>🏢 Types: {placeData.types?.join(", ") || "N/A"}</div>
-                      </div>
-                    )}
-                    {geoPoint && (
-                      <div className="text-green-700">
-                        🗺️ GeoPoint: {geoPoint.latitude.toFixed(6)}, {geoPoint.longitude.toFixed(6)}
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="expirationDate">Expiration Date</Label>
