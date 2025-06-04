@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
       subscription_status: userData.subscription_status,
       subscription_end: userData.subscription_end,
       subscription_id: userData.subscription_id,
+      plan: userData.plan, // Added plan to debug output
     })
 
     // Calculate subscription status using the same logic as auth context
@@ -50,12 +51,24 @@ export async function GET(request: NextRequest) {
     const hasBooleanFields = userData.is_subscribed !== undefined || userData.subscription_active !== undefined
     const booleanResult = userData.is_subscribed === true || userData.subscription_active === true
 
+    // Plan analysis
+    const planAnalysis = {
+      currentPlan: userData.plan || "unknown",
+      isFreePlan: userData.plan === "free",
+      isPaidPlan: userData.plan === "premium" || userData.plan === "business",
+      planFeatures: getPlanFeatures(userData.plan),
+      shouldHaveAccess: shouldBeActive || userData.plan === "premium" || userData.plan === "business",
+    }
+
     return NextResponse.json({
       success: true,
       debug: {
         userId,
         currentTime: now.toISOString(),
         timestamp: now.getTime(),
+
+        // Plan Analysis
+        planAnalysis,
 
         // Subscription Analysis
         subscriptionAnalysis: {
@@ -90,7 +103,9 @@ export async function GET(request: NextRequest) {
           created_at: userData.created_at,
           email: userData.email,
           name: userData.name,
-          plan: userData.plan,
+          plan: userData.plan, // Include plan in raw data
+          promotions_used: userData.promotions_used,
+          promotions_limit: userData.promotions_limit,
           // Include boolean fields if they exist
           ...(userData.is_subscribed !== undefined && { is_subscribed: userData.is_subscribed }),
           ...(userData.subscription_active !== undefined && { subscription_active: userData.subscription_active }),
@@ -104,6 +119,11 @@ export async function GET(request: NextRequest) {
           statusIsActive: userData.subscription_status === "active",
           endDateIsValid: subscriptionEnd instanceof Date && !isNaN(subscriptionEnd.getTime()),
           endDateInFuture: subscriptionEnd ? subscriptionEnd > now : false,
+          planIssues: [
+            !userData.plan && "Missing plan field",
+            userData.plan === "free" && !shouldBeActive && "User on free plan without active subscription",
+            userData.plan !== "free" && !shouldBeActive && "User on paid plan but subscription not active",
+          ].filter(Boolean),
           possibleIssues: [
             !userData.subscription_status && "Missing subscription_status",
             userData.subscription_status !== "active" &&
@@ -123,6 +143,7 @@ export async function GET(request: NextRequest) {
           "Update webhooks to set boolean fields when subscription changes",
           "Use boolean fields in auth context for faster subscription checks",
           "Keep date-based fields for detailed subscription management",
+          "Update plan field when subscription changes",
         ],
       },
     })
@@ -146,5 +167,33 @@ export async function GET(request: NextRequest) {
       },
       { status: 500 },
     )
+  }
+}
+
+// Helper function to get plan features
+function getPlanFeatures(plan: string) {
+  switch (plan) {
+    case "free":
+      return {
+        promotions_limit: 2,
+        analytics: false,
+        priority_support: false,
+        custom_branding: false,
+      }
+    case "premium":
+    case "business":
+      return {
+        promotions_limit: "unlimited",
+        analytics: true,
+        priority_support: true,
+        custom_branding: true,
+      }
+    default:
+      return {
+        promotions_limit: 2,
+        analytics: false,
+        priority_support: false,
+        custom_branding: false,
+      }
   }
 }

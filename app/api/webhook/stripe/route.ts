@@ -78,7 +78,33 @@ async function handleSuccessfulPayment(sessionOrInvoice: Stripe.Checkout.Session
     const subscription = await stripe.subscriptions.retrieve(subscriptionId)
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000)
 
+    // Determine plan based on Stripe price/product
+    let plan = "premium" // Default to premium for paid subscriptions
+
+    // You can customize this based on your Stripe price IDs
+    if (subscription.items.data.length > 0) {
+      const priceId = subscription.items.data[0].price.id
+      // Map your Stripe price IDs to plan names
+      switch (priceId) {
+        case "price_basic_monthly":
+        case "price_basic_yearly":
+          plan = "basic"
+          break
+        case "price_premium_monthly":
+        case "price_premium_yearly":
+          plan = "premium"
+          break
+        case "price_business_monthly":
+        case "price_business_yearly":
+          plan = "business"
+          break
+        default:
+          plan = "premium" // Default fallback
+      }
+    }
+
     console.log(`📅 Subscription period end: ${currentPeriodEnd.toISOString()}`)
+    console.log(`📋 Plan determined: ${plan}`)
 
     // Update user in Firestore
     const userRef = doc(db, "business_users", userId)
@@ -88,7 +114,13 @@ async function handleSuccessfulPayment(sessionOrInvoice: Stripe.Checkout.Session
       subscription_start: new Date().toISOString(),
       subscription_end: currentPeriodEnd.toISOString(),
       customer_id: subscription.customer,
+      plan: plan, // Set the plan field
       updated_at: new Date().toISOString(),
+      // Add boolean fields for better performance
+      is_subscribed: true,
+      subscription_active: true,
+      // Update promotion limits based on plan
+      promotions_limit: plan === "free" ? 2 : 999, // Unlimited for paid plans
     }
 
     console.log(`💾 Updating user document with:`, updateData)
@@ -111,11 +143,14 @@ async function handleFailedPayment(invoice: Stripe.Invoice) {
       return
     }
 
-    // Update user subscription status
+    // Update user subscription status but keep plan (they might pay later)
     const userRef = doc(db, "business_users", userId)
     await updateDoc(userRef, {
       subscription_status: "past_due",
       updated_at: new Date().toISOString(),
+      // Don't change plan immediately - give them time to pay
+      is_subscribed: false,
+      subscription_active: false,
     })
 
     console.log(`Updated subscription status to past_due for user ${userId}`)
@@ -133,12 +168,18 @@ async function handleCanceledSubscription(subscription: Stripe.Subscription) {
       return
     }
 
-    // Update user subscription status
+    // Update user subscription status and revert to free plan
     const userRef = doc(db, "business_users", userId)
     await updateDoc(userRef, {
       subscription_status: "canceled",
       subscription_end: new Date().toISOString(),
+      plan: "free", // Revert to free plan
       updated_at: new Date().toISOString(),
+      // Add boolean fields
+      is_subscribed: false,
+      subscription_active: false,
+      // Reset promotion limits
+      promotions_limit: 2,
     })
 
     console.log(`Updated subscription status to canceled for user ${userId}`)
