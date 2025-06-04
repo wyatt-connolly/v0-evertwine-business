@@ -33,7 +33,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/components/ui/use-toast"
-import { collection, query, where, getDocs, doc, deleteDoc, getDoc } from "firebase/firestore"
+import { collection, query, where, getDocs, doc, deleteDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -51,52 +51,26 @@ const categoryPlaceholders: Record<string, string> = {
   Restaurant: "/placeholder.svg?height=200&width=300&text=Restaurant",
   Spa: "/placeholder.svg?height=200&width=300&text=Spa",
   Retail: "/placeholder.svg?height=200&width=300&text=Retail",
-  Entertainment: "/placeholder.svg?height=200&width=300&text=Entertainment",
-  Other: "/placeholder.svg?height=200&width=300&text=Business",
+  Entertainment: "/placeholder.svg?height=200&width=300&text=Business",
 }
 
 const MAX_PROMOTIONS = 2
 
 export default function PromotionsPage() {
-  const { user, userProfile } = useAuth()
+  const { user, userProfile, hasActiveSubscription, refreshSubscription } = useAuth()
   const [promotions, setPromotions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [hasActiveSubscription, setHasActiveSubscription] = useState(false)
   const [checkingSubscription, setCheckingSubscription] = useState(true)
   const router = useRouter()
   const { toast } = useToast()
+  const [debugMode, setDebugMode] = useState(false)
 
-  const checkSubscriptionStatus = async () => {
-    if (!user) {
-      setCheckingSubscription(false)
-      return
-    }
-
-    try {
-      const userDoc = await getDoc(doc(db, "business_users", user.uid))
-      if (userDoc.exists()) {
-        const userData = userDoc.data()
-        const subscriptionStatus = userData.subscription_status
-        const subscriptionEnd = userData.subscription_end
-
-        if (subscriptionStatus === "active" && subscriptionEnd) {
-          const endDate = new Date(subscriptionEnd)
-          const now = new Date()
-          setHasActiveSubscription(endDate > now)
-        } else {
-          setHasActiveSubscription(false)
-        }
-      } else {
-        setHasActiveSubscription(false)
-      }
-    } catch (error) {
-      console.error("Error checking subscription:", error)
-      setHasActiveSubscription(false)
-    } finally {
-      setCheckingSubscription(false)
-    }
+  const refreshSubscriptionStatus = async () => {
+    setCheckingSubscription(true)
+    await refreshSubscription()
+    setCheckingSubscription(false)
   }
 
   const fetchPromotions = async () => {
@@ -134,7 +108,6 @@ export default function PromotionsPage() {
   }
 
   useEffect(() => {
-    checkSubscriptionStatus()
     fetchPromotions()
   }, [user])
 
@@ -234,20 +207,60 @@ export default function PromotionsPage() {
       </div>
 
       {!hasActiveSubscription && (
-        <Alert className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
-          <CreditCard className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-          <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-            <strong>Subscription Required:</strong> You need an active subscription ($25/month) to create and manage
-            promotions.{" "}
-            <Button
-              variant="link"
-              className="p-0 h-auto text-yellow-800 dark:text-yellow-200 underline"
-              onClick={() => router.push("/dashboard/billing")}
-            >
-              Subscribe now
+        <div className="space-y-4">
+          <Alert className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
+            <CreditCard className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+            <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+              <strong>Subscription Required:</strong> You need an active subscription ($25/month) to create and manage
+              promotions.{" "}
+              <Button
+                variant="link"
+                className="p-0 h-auto text-yellow-800 dark:text-yellow-200 underline"
+                onClick={() => router.push("/dashboard/billing")}
+              >
+                Subscribe now
+              </Button>
+            </AlertDescription>
+          </Alert>
+
+          {/* Debug section */}
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={refreshSubscriptionStatus} disabled={checkingSubscription}>
+              {checkingSubscription ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Checking...
+                </>
+              ) : (
+                "Refresh Subscription Status"
+              )}
             </Button>
-          </AlertDescription>
-        </Alert>
+            <Button variant="outline" size="sm" onClick={() => setDebugMode(!debugMode)}>
+              {debugMode ? "Hide" : "Show"} Debug Info
+            </Button>
+          </div>
+
+          {debugMode && user && (
+            <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+              <AlertDescription className="text-blue-800 dark:text-blue-200 font-mono text-xs">
+                <div>User ID: {user.uid}</div>
+                <div>Has Active Subscription: {hasActiveSubscription.toString()}</div>
+                <div>Checking: {checkingSubscription.toString()}</div>
+                <div>
+                  Debug URL:{" "}
+                  <a
+                    href={`/api/debug-subscription?userId=${user.uid}`}
+                    target="_blank"
+                    className="underline"
+                    rel="noreferrer"
+                  >
+                    Check API
+                  </a>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
       )}
 
       <div className="bg-blue-50 dark:bg-blue-950/50 p-4 rounded-lg border border-blue-200 dark:border-blue-800">

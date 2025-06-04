@@ -72,24 +72,32 @@ async function handleSuccessfulPayment(sessionOrInvoice: Stripe.Checkout.Session
       return
     }
 
+    console.log(`🎯 Processing successful payment for user: ${userId}, subscription: ${subscriptionId}`)
+
     // Get subscription details
     const subscription = await stripe.subscriptions.retrieve(subscriptionId)
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000)
 
+    console.log(`📅 Subscription period end: ${currentPeriodEnd.toISOString()}`)
+
     // Update user in Firestore
     const userRef = doc(db, "business_users", userId)
-    await updateDoc(userRef, {
+    const updateData = {
       subscription_status: "active",
       subscription_id: subscriptionId,
       subscription_start: new Date().toISOString(),
       subscription_end: currentPeriodEnd.toISOString(),
       customer_id: subscription.customer,
       updated_at: new Date().toISOString(),
-    })
+    }
 
-    console.log(`Successfully updated subscription for user ${userId}`)
+    console.log(`💾 Updating user document with:`, updateData)
+
+    await updateDoc(userRef, updateData)
+
+    console.log(`✅ Successfully updated subscription for user ${userId}`)
   } catch (error) {
-    console.error("Error handling successful payment:", error)
+    console.error("❌ Error handling successful payment:", error)
   }
 }
 

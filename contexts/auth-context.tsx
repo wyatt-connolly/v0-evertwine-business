@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import {
   type User,
   createUserWithEmailAndPassword,
@@ -25,6 +25,8 @@ type AuthContextType = {
   user: User | null
   loading: boolean
   userProfile: any
+  hasActiveSubscription: boolean
+  refreshSubscription: () => Promise<void>
   signUp: (email: string, password: string, userData: any) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   signInWithGoogle: () => Promise<void>
@@ -38,6 +40,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   userProfile: null,
+  hasActiveSubscription: false,
+  refreshSubscription: async () => {},
   signUp: async () => {},
   signIn: async () => {},
   signInWithGoogle: async () => {},
@@ -51,6 +55,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false)
+  const { db } = getFirebaseServices()
+
+  // Add function to check subscription
+  const checkSubscription = useCallback(async (userData: any) => {
+    if (!userData) {
+      setHasActiveSubscription(false)
+      return
+    }
+
+    const subscriptionStatus = userData.subscription_status
+    const subscriptionEnd = userData.subscription_end
+
+    if (subscriptionStatus === "active" && subscriptionEnd) {
+      const endDate = new Date(subscriptionEnd)
+      const now = new Date()
+      setHasActiveSubscription(endDate > now)
+    } else {
+      setHasActiveSubscription(false)
+    }
+  }, [])
+
+  // Add refresh function
+  const refreshSubscription = useCallback(async () => {
+    if (!user || !db) return
+
+    try {
+      const userDoc = await getDoc(doc(db, "business_users", user.uid))
+      if (userDoc.exists()) {
+        const userData = userDoc.data()
+        setUserProfile(userData)
+        await checkSubscription(userData)
+      }
+    } catch (error) {
+      console.error("Error refreshing subscription:", error)
+    }
+  }, [user, checkSubscription, db])
 
   // Sign up function
   const signUp = async (email: string, password: string, userData: any) => {
@@ -189,10 +230,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const userDoc = await getDoc(doc(db, "business_users", currentUser.uid))
 
               if (userDoc.exists()) {
-                setUserProfile(userDoc.data())
+                const userData = userDoc.data()
+                setUserProfile(userData)
+                checkSubscription(userData)
               } else {
                 console.log("No user profile found")
                 setUserProfile(null)
+                setHasActiveSubscription(false)
               }
             } catch (error) {
               console.error("Error fetching user profile:", error)
@@ -213,13 +257,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     initializeAuth()
-  }, [])
+  }, [checkSubscription, db])
 
   // Create value object
   const value = {
     user,
     loading,
     userProfile,
+    hasActiveSubscription,
+    refreshSubscription,
     signUp,
     signIn,
     signInWithGoogle,
