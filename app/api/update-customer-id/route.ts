@@ -10,11 +10,23 @@ export async function POST(request: NextRequest) {
   try {
     const { userId, customerId } = await request.json()
 
-    if (!userId) {
-      return NextResponse.json({ error: "userId required" }, { status: 400 })
+    if (!userId || !customerId) {
+      return NextResponse.json({ error: "userId and customerId are required" }, { status: 400 })
     }
 
-    console.log(`🔄 Syncing subscription for user: ${userId}`)
+    console.log(`🔄 Updating customer ID for user ${userId} to ${customerId}`)
+
+    // First, check if the customer exists in Stripe
+    try {
+      const customer = await stripe.customers.retrieve(customerId)
+      if (!customer || customer.deleted) {
+        return NextResponse.json({ error: "Invalid Stripe customer ID" }, { status: 400 })
+      }
+      console.log(`✅ Verified Stripe customer: ${customer.email}`)
+    } catch (error: any) {
+      console.error("❌ Error verifying Stripe customer:", error)
+      return NextResponse.json({ error: `Invalid Stripe customer ID: ${error.message}` }, { status: 400 })
+    }
 
     // Get user document reference
     const userRef = db.collection("business_users").doc(userId)
@@ -25,31 +37,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const userData = userDoc.data()
+    // Update the customer ID
+    await userRef.update({
+      customer_id: customerId,
+      updated_at: new Date().toISOString(),
+    })
 
-    // Use provided customerId or get from user data
-    const customerIdToUse = customerId || userData.customer_id
+    console.log(`✅ Updated customer ID in Firebase`)
 
-    if (!customerIdToUse) {
-      return NextResponse.json(
-        {
-          error: "No customer ID found",
-          message: "Please provide a customerId parameter or ensure the user has a customer_id in their profile",
-          userId: userId,
-          userData: {
-            hasCustomerId: !!userData.customer_id,
-            email: userData.email,
-          },
-        },
-        { status: 400 },
-      )
-    }
-
-    console.log(`🔍 Using customer ID: ${customerIdToUse}`)
-
-    // Get active subscriptions from Stripe
+    // Now get active subscriptions from Stripe
     const subscriptions = await stripe.subscriptions.list({
-      customer: customerIdToUse,
+      customer: customerId,
       status: "active",
       limit: 1,
     })
@@ -65,7 +63,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: "No active subscription found",
+        message: "Customer ID updated, but no active subscription found",
         status: "inactive",
       })
     }
@@ -73,12 +71,11 @@ export async function POST(request: NextRequest) {
     const subscription = subscriptions.data[0]
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000)
 
-    // Update user document
+    // Update user document with subscription details
     await userRef.update({
       subscription_status: "active",
       subscription_id: subscription.id,
       subscription_end: currentPeriodEnd.toISOString(),
-      customer_id: customerIdToUse, // Ensure customer_id is saved
       is_subscribed: true,
       subscription_active: true,
       updated_at: new Date().toISOString(),
@@ -86,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Subscription synced successfully",
+      message: "Customer ID and subscription synced successfully",
       subscription: {
         id: subscription.id,
         status: subscription.status,
@@ -94,10 +91,10 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error: any) {
-    console.error("Error syncing subscription:", error)
+    console.error("Error updating customer ID:", error)
     return NextResponse.json(
       {
-        error: "Failed to sync subscription",
+        error: "Failed to update customer ID",
         details: error.message,
         stack: error.stack,
       },
