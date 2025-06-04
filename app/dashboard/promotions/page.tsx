@@ -110,6 +110,43 @@ export default function PromotionsPage() {
     }
   }
 
+  const syncSubscription = async () => {
+    if (!user) return
+
+    setRefreshing(true)
+    try {
+      const response = await fetch("/api/sync-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.uid }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast({
+          title: "Subscription Synced",
+          description: result.message,
+        })
+        await refreshSubscription()
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Sync Failed",
+          description: result.error || "Failed to sync subscription",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to sync subscription",
+      })
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   const fetchPromotions = async () => {
     if (!user) {
       setLoading(false)
@@ -284,6 +321,16 @@ export default function PromotionsPage() {
                 </>
               ) : (
                 "Fix Subscription"
+              )}
+            </Button>
+            <Button variant="outline" size="sm" onClick={syncSubscription} disabled={refreshing}>
+              {refreshing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Syncing...
+                </>
+              ) : (
+                "Sync with Stripe"
               )}
             </Button>
             <Button variant="outline" size="sm" onClick={() => setDebugMode(!debugMode)}>
