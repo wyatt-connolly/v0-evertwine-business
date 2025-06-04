@@ -9,64 +9,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Try to import Firebase Admin
-    let db
-    try {
-      const firebaseAdmin = await import("@/lib/firebase-admin")
-      db = firebaseAdmin.db
-    } catch (importError) {
-      return NextResponse.json(
-        {
-          error: "Failed to import Firebase Admin",
-          details: importError.message,
-          userId,
-          suggestion: "Check Firebase Admin SDK configuration",
-        },
-        { status: 500 },
-      )
-    }
-
-    // Check if db is available
-    if (!db) {
-      return NextResponse.json(
-        {
-          error: "Firebase Admin database not available",
-          details: "Database instance is null or undefined",
-          userId,
-          suggestion: "Check environment variables and Firebase Admin initialization",
-        },
-        { status: 500 },
-      )
-    }
+    // Import Firebase Admin
+    const { db } = await import("@/lib/firebase-admin")
 
     console.log(`🔍 Checking subscription for user: ${userId}`)
 
-    // Try to access Firestore
-    let userDoc
-    try {
-      const { doc, getDoc } = await import("firebase-admin/firestore")
-      userDoc = await getDoc(doc(db, "business_users", userId))
-    } catch (firestoreError) {
-      return NextResponse.json(
-        {
-          error: "Firestore operation failed",
-          details: firestoreError.message,
-          userId,
-          suggestion: "This usually indicates Firebase Admin SDK initialization issues",
-          troubleshooting: {
-            checkEnvironmentVariables: "/api/test-firebase-admin",
-            commonIssues: [
-              "FIREBASE_PRIVATE_KEY format incorrect",
-              "Missing environment variables",
-              "Private key newlines not properly escaped",
-            ],
-          },
-        },
-        { status: 500 },
-      )
-    }
+    // Use Firebase Admin SDK methods (not client SDK)
+    const userDocRef = db.collection("business_users").doc(userId)
+    const userDoc = await userDocRef.get()
 
-    if (!userDoc.exists()) {
+    if (!userDoc.exists) {
       console.log(`❌ User document not found: ${userId}`)
       return NextResponse.json(
         {
