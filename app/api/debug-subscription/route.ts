@@ -1,6 +1,4 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { doc, getDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase-admin"
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -11,13 +9,31 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Ensure we have a valid Firebase admin instance
-    if (!db) {
-      console.error("Firebase admin not initialized")
+    // Try to import Firebase Admin
+    let db
+    try {
+      const firebaseAdmin = await import("@/lib/firebase-admin")
+      db = firebaseAdmin.db
+    } catch (importError) {
       return NextResponse.json(
         {
-          error: "Firebase admin not available",
-          details: "Server configuration issue",
+          error: "Failed to import Firebase Admin",
+          details: importError.message,
+          userId,
+          suggestion: "Check Firebase Admin SDK configuration",
+        },
+        { status: 500 },
+      )
+    }
+
+    // Check if db is available
+    if (!db) {
+      return NextResponse.json(
+        {
+          error: "Firebase Admin database not available",
+          details: "Database instance is null or undefined",
+          userId,
+          suggestion: "Check environment variables and Firebase Admin initialization",
         },
         { status: 500 },
       )
@@ -25,7 +41,30 @@ export async function GET(request: NextRequest) {
 
     console.log(`🔍 Checking subscription for user: ${userId}`)
 
-    const userDoc = await getDoc(doc(db, "business_users", userId))
+    // Try to access Firestore
+    let userDoc
+    try {
+      const { doc, getDoc } = await import("firebase-admin/firestore")
+      userDoc = await getDoc(doc(db, "business_users", userId))
+    } catch (firestoreError) {
+      return NextResponse.json(
+        {
+          error: "Firestore operation failed",
+          details: firestoreError.message,
+          userId,
+          suggestion: "This usually indicates Firebase Admin SDK initialization issues",
+          troubleshooting: {
+            checkEnvironmentVariables: "/api/test-firebase-admin",
+            commonIssues: [
+              "FIREBASE_PRIVATE_KEY format incorrect",
+              "Missing environment variables",
+              "Private key newlines not properly escaped",
+            ],
+          },
+        },
+        { status: 500 },
+      )
+    }
 
     if (!userDoc.exists()) {
       console.log(`❌ User document not found: ${userId}`)
@@ -34,6 +73,7 @@ export async function GET(request: NextRequest) {
           error: "User not found",
           userId,
           collection: "business_users",
+          suggestion: "User document does not exist in Firestore",
         },
         { status: 404 },
       )
@@ -142,7 +182,15 @@ export async function GET(request: NextRequest) {
         details: error.message,
         stack: error.stack,
         userId,
-        firebaseAdminAvailable: !!db,
+        troubleshooting: {
+          testFirebaseAdmin: "/api/test-firebase-admin",
+          commonCauses: [
+            "Firebase Admin SDK not properly initialized",
+            "Environment variables missing or incorrect",
+            "Private key format issues",
+            "Firestore permissions",
+          ],
+        },
       },
       { status: 500 },
     )
