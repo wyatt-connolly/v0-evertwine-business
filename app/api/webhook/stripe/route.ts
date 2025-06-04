@@ -45,6 +45,11 @@ export async function POST(request: NextRequest) {
         await handleCanceledSubscription(deletedSubscription)
         break
 
+      case "customer.subscription.updated":
+        const updatedSubscription = event.data.object as Stripe.Subscription
+        await handleSubscriptionUpdate(updatedSubscription)
+        break
+
       default:
         console.log(`Unhandled event type: ${event.type}`)
     }
@@ -80,9 +85,14 @@ async function handleSuccessfulPayment(sessionOrInvoice: Stripe.Checkout.Session
 
     console.log(`📅 Subscription period end: ${currentPeriodEnd.toISOString()}`)
 
-    // Update user in Firestore
+    // Update user in Firestore with simple boolean
     const userRef = doc(db, "business_users", userId)
     const updateData = {
+      // Simple boolean field - much more reliable!
+      is_subscribed: true,
+      subscription_active: true,
+
+      // Keep detailed info for reference
       subscription_status: "active",
       subscription_id: subscriptionId,
       subscription_start: new Date().toISOString(),
@@ -114,6 +124,8 @@ async function handleFailedPayment(invoice: Stripe.Invoice) {
     // Update user subscription status
     const userRef = doc(db, "business_users", userId)
     await updateDoc(userRef, {
+      is_subscribed: false,
+      subscription_active: false,
       subscription_status: "past_due",
       updated_at: new Date().toISOString(),
     })
@@ -136,6 +148,8 @@ async function handleCanceledSubscription(subscription: Stripe.Subscription) {
     // Update user subscription status
     const userRef = doc(db, "business_users", userId)
     await updateDoc(userRef, {
+      is_subscribed: false,
+      subscription_active: false,
       subscription_status: "canceled",
       subscription_end: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -144,5 +158,34 @@ async function handleCanceledSubscription(subscription: Stripe.Subscription) {
     console.log(`Updated subscription status to canceled for user ${userId}`)
   } catch (error) {
     console.error("Error handling canceled subscription:", error)
+  }
+}
+
+async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
+  try {
+    const userId = subscription.metadata?.userId
+
+    if (!userId) {
+      console.error("No userId found in subscription metadata")
+      return
+    }
+
+    // Determine if subscription is active
+    const isActive = subscription.status === "active"
+    const currentPeriodEnd = new Date(subscription.current_period_end * 1000)
+
+    // Update user subscription status
+    const userRef = doc(db, "business_users", userId)
+    await updateDoc(userRef, {
+      is_subscribed: isActive,
+      subscription_active: isActive,
+      subscription_status: subscription.status,
+      subscription_end: currentPeriodEnd.toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+
+    console.log(`Updated subscription for user ${userId}: active=${isActive}`)
+  } catch (error) {
+    console.error("Error handling subscription update:", error)
   }
 }

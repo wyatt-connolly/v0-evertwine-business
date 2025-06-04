@@ -25,12 +25,24 @@ export async function GET(request: NextRequest) {
       debug: {
         userId,
         currentTime: now.toISOString(),
+
+        // NEW: Simple boolean fields
+        is_subscribed: userData.is_subscribed,
+        subscription_active: userData.subscription_active,
+
+        // OLD: Complex date-based logic
         subscriptionStatus: userData.subscription_status,
         subscriptionEnd: userData.subscription_end,
         subscriptionEndParsed: subscriptionEnd?.toISOString(),
         isEndDateValid: subscriptionEnd ? subscriptionEnd > now : false,
-        isActive: userData.subscription_status === "active" && subscriptionEnd && subscriptionEnd > now,
+
+        // Comparison
+        shouldUseBoolean: userData.is_subscribed === true || userData.subscription_active === true,
+        shouldUseDateLogic: userData.subscription_status === "active" && subscriptionEnd && subscriptionEnd > now,
+
         rawUserData: {
+          is_subscribed: userData.is_subscribed,
+          subscription_active: userData.subscription_active,
           subscription_status: userData.subscription_status,
           subscription_start: userData.subscription_start,
           subscription_end: userData.subscription_end,

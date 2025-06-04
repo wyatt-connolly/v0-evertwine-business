@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
     if (subscriptions.data.length === 0) {
       // No active subscription
       await updateDoc(doc(db, "business_users", userId), {
+        is_subscribed: false,
+        subscription_active: false,
         subscription_status: "inactive",
         updated_at: new Date().toISOString(),
       })
@@ -46,15 +48,19 @@ export async function POST(request: NextRequest) {
         success: true,
         message: "No active subscription found",
         status: "inactive",
+        is_subscribed: false,
       })
     }
 
     const subscription = subscriptions.data[0]
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000)
+    const isActive = subscription.status === "active"
 
-    // Update user document
+    // Update user document with simple boolean
     await updateDoc(doc(db, "business_users", userId), {
-      subscription_status: "active",
+      is_subscribed: isActive,
+      subscription_active: isActive,
+      subscription_status: subscription.status,
       subscription_id: subscription.id,
       subscription_end: currentPeriodEnd.toISOString(),
       customer_id: subscription.customer,
@@ -64,6 +70,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: "Subscription synced successfully",
+      is_subscribed: isActive,
       subscription: {
         id: subscription.id,
         status: subscription.status,

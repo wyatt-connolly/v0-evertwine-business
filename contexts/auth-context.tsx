@@ -56,22 +56,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false)
-  const { db } = getFirebaseServices()
 
-  // Add function to check subscription
-  const checkSubscription = useCallback(async (userData: any) => {
+  // Simple subscription check using boolean field
+  const checkSubscription = useCallback((userData: any) => {
     if (!userData) {
       setHasActiveSubscription(false)
       return
     }
 
+    // Primary check: use the simple boolean field
+    if (userData.is_subscribed === true || userData.subscription_active === true) {
+      setHasActiveSubscription(true)
+      return
+    }
+
+    // Fallback: check the old way for backwards compatibility
     const subscriptionStatus = userData.subscription_status
     const subscriptionEnd = userData.subscription_end
 
     if (subscriptionStatus === "active" && subscriptionEnd) {
       const endDate = new Date(subscriptionEnd)
       const now = new Date()
-      setHasActiveSubscription(endDate > now)
+      const isActiveByDate = endDate > now
+      setHasActiveSubscription(isActiveByDate)
     } else {
       setHasActiveSubscription(false)
     }
@@ -79,19 +86,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Add refresh function
   const refreshSubscription = useCallback(async () => {
-    if (!user || !db) return
+    if (!user) return
 
     try {
+      const { db } = await getFirebaseServices()
+      if (!db) return
+
       const userDoc = await getDoc(doc(db, "business_users", user.uid))
       if (userDoc.exists()) {
         const userData = userDoc.data()
         setUserProfile(userData)
-        await checkSubscription(userData)
+        checkSubscription(userData)
       }
     } catch (error) {
       console.error("Error refreshing subscription:", error)
     }
-  }, [user, checkSubscription, db])
+  }, [user, checkSubscription])
 
   // Sign up function
   const signUp = async (email: string, password: string, userData: any) => {
@@ -105,12 +115,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await setDoc(doc(db, "business_users", userCredential.user.uid), {
       ...userData,
       email,
-      createdAt: new Date().toISOString(),
+      created_at: new Date().toISOString(),
       status: "pending",
       plan: "free",
-      promotionsUsed: 0,
-      promotionsLimit: 2,
-      authProvider: "email",
+      promotions_used: 0,
+      promotions_limit: 2,
+      auth_provider: "email",
+      // Initialize subscription fields
+      is_subscribed: false,
+      subscription_active: false,
     })
   }
 
@@ -145,13 +158,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: user.displayName || "",
         email: user.email,
         phone: user.phoneNumber || "",
-        photoURL: user.photoURL || "",
-        createdAt: new Date().toISOString(),
+        photo_url: user.photoURL || "",
+        created_at: new Date().toISOString(),
         status: "pending",
         plan: "free",
-        promotionsUsed: 0,
-        promotionsLimit: 2,
-        authProvider: "google",
+        promotions_used: 0,
+        promotions_limit: 2,
+        auth_provider: "google",
+        // Initialize subscription fields
+        is_subscribed: false,
+        subscription_active: false,
       })
     }
   }
@@ -176,13 +192,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: user.displayName || "",
         email: user.email,
         phone: user.phoneNumber || "",
-        photoURL: user.photoURL || "",
-        createdAt: new Date().toISOString(),
+        photo_url: user.photoURL || "",
+        created_at: new Date().toISOString(),
         status: "pending",
         plan: "free",
-        promotionsUsed: 0,
-        promotionsLimit: 2,
-        authProvider: "facebook",
+        promotions_used: 0,
+        promotions_limit: 2,
+        auth_provider: "facebook",
+        // Initialize subscription fields
+        is_subscribed: false,
+        subscription_active: false,
       })
     }
   }
@@ -241,9 +260,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } catch (error) {
               console.error("Error fetching user profile:", error)
               setUserProfile(null)
+              setHasActiveSubscription(false)
             }
           } else {
             setUserProfile(null)
+            setHasActiveSubscription(false)
           }
 
           setLoading(false)
@@ -257,7 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     initializeAuth()
-  }, [checkSubscription, db])
+  }, [checkSubscription])
 
   // Create value object
   const value = {
