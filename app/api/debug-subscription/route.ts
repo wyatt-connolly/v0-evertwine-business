@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { doc, getDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase"
+import { db } from "@/lib/firebase-admin"
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -11,25 +11,59 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Ensure we have a valid Firebase admin instance
+    if (!db) {
+      console.error("Firebase admin not initialized")
+      return NextResponse.json(
+        {
+          error: "Firebase admin not available",
+          details: "Server configuration issue",
+        },
+        { status: 500 },
+      )
+    }
+
+    console.log(`🔍 Checking subscription for user: ${userId}`)
+
     const userDoc = await getDoc(doc(db, "business_users", userId))
 
     if (!userDoc.exists()) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      console.log(`❌ User document not found: ${userId}`)
+      return NextResponse.json(
+        {
+          error: "User not found",
+          userId,
+          collection: "business_users",
+        },
+        { status: 404 },
+      )
     }
 
     const userData = userDoc.data()
     const now = new Date()
     const subscriptionEnd = userData.subscription_end ? new Date(userData.subscription_end) : null
 
+    console.log(`📊 User data retrieved:`, {
+      subscription_status: userData.subscription_status,
+      subscription_end: userData.subscription_end,
+      subscription_id: userData.subscription_id,
+    })
+
     // Calculate subscription status using the same logic as auth context
     const isActiveByStatus = userData.subscription_status === "active"
     const isActiveByDate = subscriptionEnd ? subscriptionEnd > now : false
     const shouldBeActive = isActiveByStatus && isActiveByDate
 
+    // Check for boolean fields (if they exist)
+    const hasBooleanFields = userData.is_subscribed !== undefined || userData.subscription_active !== undefined
+    const booleanResult = userData.is_subscribed === true || userData.subscription_active === true
+
     return NextResponse.json({
+      success: true,
       debug: {
         userId,
         currentTime: now.toISOString(),
+        timestamp: now.getTime(),
 
         // Subscription Analysis
         subscriptionAnalysis: {
@@ -44,6 +78,15 @@ export async function GET(request: NextRequest) {
             : null,
         },
 
+        // Boolean Fields Check
+        booleanFields: {
+          exists: hasBooleanFields,
+          is_subscribed: userData.is_subscribed,
+          subscription_active: userData.subscription_active,
+          booleanResult: booleanResult,
+          recommendUseBooleans: true,
+        },
+
         // Raw Firebase Data
         rawUserData: {
           subscription_status: userData.subscription_status,
@@ -56,6 +99,9 @@ export async function GET(request: NextRequest) {
           email: userData.email,
           name: userData.name,
           plan: userData.plan,
+          // Include boolean fields if they exist
+          ...(userData.is_subscribed !== undefined && { is_subscribed: userData.is_subscribed }),
+          ...(userData.subscription_active !== undefined && { subscription_active: userData.subscription_active }),
         },
 
         // Troubleshooting
@@ -74,17 +120,29 @@ export async function GET(request: NextRequest) {
             subscriptionEnd && subscriptionEnd <= now && "Subscription end date is in the past",
             !userData.subscription_id && "Missing subscription_id",
             !userData.customer_id && "Missing customer_id",
+            !hasBooleanFields &&
+              "Consider adding boolean fields (is_subscribed, subscription_active) for better performance",
           ].filter(Boolean),
         },
+
+        // Recommendations
+        recommendations: [
+          "Add boolean fields (is_subscribed, subscription_active) to user documents",
+          "Update webhooks to set boolean fields when subscription changes",
+          "Use boolean fields in auth context for faster subscription checks",
+          "Keep date-based fields for detailed subscription management",
+        ],
       },
     })
   } catch (error) {
-    console.error("Error checking subscription:", error)
+    console.error("❌ Error checking subscription:", error)
     return NextResponse.json(
       {
         error: "Failed to check subscription",
         details: error.message,
+        stack: error.stack,
         userId,
+        firebaseAdminAvailable: !!db,
       },
       { status: 500 },
     )

@@ -73,6 +73,43 @@ export default function PromotionsPage() {
     setRefreshing(false)
   }
 
+  const fixSubscription = async () => {
+    if (!user) return
+
+    setRefreshing(true)
+    try {
+      const response = await fetch("/api/fix-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.uid }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast({
+          title: "Subscription Fixed",
+          description: result.message,
+        })
+        await refreshSubscription()
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Fix Failed",
+          description: result.error || "Failed to fix subscription",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fix subscription",
+      })
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   const fetchPromotions = async () => {
     if (!user) {
       setLoading(false)
@@ -237,6 +274,16 @@ export default function PromotionsPage() {
                 </>
               ) : (
                 "Refresh Subscription Status"
+              )}
+            </Button>
+            <Button variant="outline" size="sm" onClick={fixSubscription} disabled={refreshing}>
+              {refreshing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Fixing...
+                </>
+              ) : (
+                "Fix Subscription"
               )}
             </Button>
             <Button variant="outline" size="sm" onClick={() => setDebugMode(!debugMode)}>
