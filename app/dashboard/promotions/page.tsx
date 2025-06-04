@@ -57,20 +57,20 @@ const categoryPlaceholders: Record<string, string> = {
 const MAX_PROMOTIONS = 2
 
 export default function PromotionsPage() {
-  const { user, userProfile, hasActiveSubscription, refreshSubscription } = useAuth()
+  const { user, userProfile, hasActiveSubscription, refreshSubscription, loading: authLoading } = useAuth()
   const [promotions, setPromotions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [checkingSubscription, setCheckingSubscription] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
   const [debugMode, setDebugMode] = useState(false)
 
   const refreshSubscriptionStatus = async () => {
-    setCheckingSubscription(true)
+    setRefreshing(true)
     await refreshSubscription()
-    setCheckingSubscription(false)
+    setRefreshing(false)
   }
 
   const fetchPromotions = async () => {
@@ -108,8 +108,12 @@ export default function PromotionsPage() {
   }
 
   useEffect(() => {
-    fetchPromotions()
-  }, [user])
+    if (!authLoading && user) {
+      fetchPromotions()
+    } else if (!authLoading && !user) {
+      setLoading(false)
+    }
+  }, [user, authLoading])
 
   const handleDelete = async (id: string) => {
     setDeletingId(id)
@@ -169,7 +173,7 @@ export default function PromotionsPage() {
     )
   }
 
-  if (loading || checkingSubscription) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-[#6A0DAD]" />
@@ -225,8 +229,8 @@ export default function PromotionsPage() {
 
           {/* Debug section */}
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={refreshSubscriptionStatus} disabled={checkingSubscription}>
-              {checkingSubscription ? (
+            <Button variant="outline" size="sm" onClick={refreshSubscriptionStatus} disabled={refreshing}>
+              {refreshing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Checking...
@@ -245,7 +249,8 @@ export default function PromotionsPage() {
               <AlertDescription className="text-blue-800 dark:text-blue-200 font-mono text-xs">
                 <div>User ID: {user.uid}</div>
                 <div>Has Active Subscription: {hasActiveSubscription.toString()}</div>
-                <div>Checking: {checkingSubscription.toString()}</div>
+                <div>Auth Loading: {authLoading.toString()}</div>
+                <div>Promotions Loading: {loading.toString()}</div>
                 <div>
                   Debug URL:{" "}
                   <a

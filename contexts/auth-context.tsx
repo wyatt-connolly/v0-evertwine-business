@@ -57,34 +57,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false)
 
-  // Simple subscription check using boolean field
+  // Simple subscription check function
   const checkSubscription = useCallback((userData: any) => {
     if (!userData) {
       setHasActiveSubscription(false)
       return
     }
 
-    // Primary check: use the simple boolean field
-    if (userData.is_subscribed === true || userData.subscription_active === true) {
-      setHasActiveSubscription(true)
-      return
-    }
-
-    // Fallback: check the old way for backwards compatibility
     const subscriptionStatus = userData.subscription_status
     const subscriptionEnd = userData.subscription_end
 
     if (subscriptionStatus === "active" && subscriptionEnd) {
       const endDate = new Date(subscriptionEnd)
       const now = new Date()
-      const isActiveByDate = endDate > now
-      setHasActiveSubscription(isActiveByDate)
+      setHasActiveSubscription(endDate > now)
     } else {
       setHasActiveSubscription(false)
     }
   }, [])
 
-  // Add refresh function
+  // Refresh subscription function
   const refreshSubscription = useCallback(async () => {
     if (!user) return
 
@@ -121,9 +113,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       promotions_used: 0,
       promotions_limit: 2,
       auth_provider: "email",
-      // Initialize subscription fields
-      is_subscribed: false,
-      subscription_active: false,
     })
   }
 
@@ -165,9 +154,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         promotions_used: 0,
         promotions_limit: 2,
         auth_provider: "google",
-        // Initialize subscription fields
-        is_subscribed: false,
-        subscription_active: false,
       })
     }
   }
@@ -199,9 +185,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         promotions_used: 0,
         promotions_limit: 2,
         auth_provider: "facebook",
-        // Initialize subscription fields
-        is_subscribed: false,
-        subscription_active: false,
       })
     }
   }
@@ -228,7 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await sendPasswordResetEmail(auth, email)
   }
 
-  // Listen for auth state changes
+  // Listen for auth state changes - FIXED: Removed checkSubscription from dependencies
   useEffect(() => {
     const initializeAuth = async () => {
       try {
@@ -241,6 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+          console.log("Auth state changed:", currentUser ? "User logged in" : "User logged out")
           setUser(currentUser)
 
           if (currentUser && db) {
@@ -251,7 +235,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (userDoc.exists()) {
                 const userData = userDoc.data()
                 setUserProfile(userData)
-                checkSubscription(userData)
+
+                // Check subscription directly here instead of calling the function
+                const subscriptionStatus = userData.subscription_status
+                const subscriptionEnd = userData.subscription_end
+
+                if (subscriptionStatus === "active" && subscriptionEnd) {
+                  const endDate = new Date(subscriptionEnd)
+                  const now = new Date()
+                  setHasActiveSubscription(endDate > now)
+                } else {
+                  setHasActiveSubscription(false)
+                }
               } else {
                 console.log("No user profile found")
                 setUserProfile(null)
@@ -278,7 +273,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     initializeAuth()
-  }, [checkSubscription])
+  }, []) // Empty dependency array - this was the issue!
 
   // Create value object
   const value = {
