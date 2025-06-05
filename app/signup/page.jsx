@@ -201,7 +201,7 @@ export default function SignupPage() {
       {/* Back to Home Link */}
       <Link
         href="/"
-        className="absolute top-4 left-4 flex items-center text-sm text-gray-600 hover:text-[#6A0DAD] transition-colors"
+        className="absolute top-4 left-4 flex items-center text-sm text-gray-600 hover:text-blue-600 transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-1" />
         Back to Home
