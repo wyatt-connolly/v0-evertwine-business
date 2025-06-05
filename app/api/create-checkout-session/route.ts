@@ -13,20 +13,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Create Stripe checkout session
+    // Create or retrieve customer
+    let customer
+    try {
+      const customers = await stripe.customers.list({
+        email: userEmail,
+        limit: 1,
+      })
+
+      if (customers.data.length > 0) {
+        customer = customers.data[0]
+      } else {
+        customer = await stripe.customers.create({
+          email: userEmail,
+          metadata: {
+            userId: userId,
+          },
+        })
+      }
+    } catch (error) {
+      console.error("Error creating/retrieving customer:", error)
+      return NextResponse.json({ error: "Failed to create customer" }, { status: 500 })
+    }
+
+    // Create checkout session
     const session = await stripe.checkout.sessions.create({
+      customer: customer.id,
       payment_method_types: ["card"],
-      mode: "subscription",
       line_items: [
         {
           price_data: {
             currency: "usd",
             product_data: {
-              name: "Evertwine Business Pro",
-              description: "Create unlimited promotions and grow your business",
-              images: ["https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400"],
+              name: "Evertwine Pro",
+              description: "Unlimited promotions, analytics, and premium features",
             },
-            unit_amount: 2500, // $25.00 in cents
+            unit_amount: 3500, // $35.00 in cents
             recurring: {
               interval: "month",
             },
@@ -34,24 +56,17 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      customer_email: userEmail,
+      mode: "subscription",
+      success_url: `${request.headers.get("origin")}/dashboard/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${request.headers.get("origin")}/dashboard/billing?canceled=true`,
       metadata: {
         userId: userId,
-      },
-      success_url: `${request.nextUrl.origin}/dashboard/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${request.nextUrl.origin}/dashboard/billing?canceled=true`,
-      allow_promotion_codes: true,
-      billing_address_collection: "required",
-      subscription_data: {
-        metadata: {
-          userId: userId,
-        },
       },
     })
 
     return NextResponse.json({ sessionId: session.id })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating checkout session:", error)
-    return NextResponse.json({ error: "Failed to create checkout session" }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

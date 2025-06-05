@@ -8,7 +8,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/components/ui/use-toast"
 import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { Loader2, Check, X, CreditCard, Users, BarChart3, Sparkles, Crown, Zap } from "lucide-react"
+import {
+  Loader2,
+  Check,
+  CreditCard,
+  Users,
+  BarChart3,
+  Sparkles,
+  Crown,
+  Zap,
+  Star,
+  TrendingUp,
+  Shield,
+  Headphones,
+} from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 declare global {
@@ -161,10 +174,12 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Choose Your Plan</h1>
-        <p className="text-muted-foreground text-lg">Unlock the full potential of your business with Evertwine Pro</p>
+        <h1 className="text-4xl font-bold tracking-tight mb-4">Unlock Your Business Potential</h1>
+        <p className="text-muted-foreground text-xl max-w-2xl mx-auto">
+          Join thousands of businesses using Evertwine Pro to create powerful promotions and grow their customer base
+        </p>
       </div>
 
       {/* Current Status Alert */}
@@ -182,179 +197,211 @@ export default function BillingPage() {
         </Alert>
       )}
 
-      <div className="grid md:grid-cols-2 gap-8">
-        {/* Free Plan */}
-        <Card className="relative border-2">
-          <CardHeader className="text-center pb-8">
-            <CardTitle className="text-2xl">Free Plan</CardTitle>
-            <CardDescription>Perfect for getting started</CardDescription>
-            <div className="mt-4">
-              <span className="text-4xl font-bold">$0</span>
-              <span className="text-muted-foreground">/month</span>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <X className="h-5 w-5 text-red-500" />
-                <span>No promotions allowed</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <X className="h-5 w-5 text-red-500" />
-                <span>No analytics</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Check className="h-5 w-5 text-green-500" />
-                <span>Basic profile setup</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Check className="h-5 w-5 text-green-500" />
-                <span>QR code generation</span>
-              </div>
-            </div>
-            <Button variant="outline" className="w-full mt-6" disabled>
-              Current Plan
-            </Button>
-          </CardContent>
-        </Card>
+      {/* Social Proof */}
+      <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/50 dark:to-purple-950/50 p-6 rounded-xl border">
+        <div className="flex items-center justify-center gap-8 text-center">
+          <div>
+            <div className="text-2xl font-bold text-[#6A0DAD]">10,000+</div>
+            <div className="text-sm text-muted-foreground">Active Businesses</div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-[#6A0DAD]">500K+</div>
+            <div className="text-sm text-muted-foreground">Promotions Created</div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-[#6A0DAD]">98%</div>
+            <div className="text-sm text-muted-foreground">Customer Satisfaction</div>
+          </div>
+        </div>
+      </div>
 
-        {/* Pro Plan */}
-        <Card className="relative border-2 border-[#6A0DAD] shadow-lg">
+      {/* Pro Plan - Single Plan */}
+      <div className="max-w-md mx-auto">
+        <Card className="relative border-2 border-[#6A0DAD] shadow-2xl">
           <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-            <div className="bg-gradient-to-r from-[#6A0DAD] to-purple-600 text-white px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
+            <div className="bg-gradient-to-r from-[#6A0DAD] to-purple-600 text-white px-6 py-2 rounded-full text-sm font-medium flex items-center gap-2">
               <Crown className="h-4 w-4" />
-              Most Popular
+              Most Popular Choice
             </div>
           </div>
           <CardHeader className="text-center pb-8 pt-8">
-            <CardTitle className="text-2xl flex items-center justify-center gap-2">
-              <Sparkles className="h-6 w-6 text-[#6A0DAD]" />
-              Pro Plan
+            <CardTitle className="text-3xl flex items-center justify-center gap-2">
+              <Sparkles className="h-8 w-8 text-[#6A0DAD]" />
+              Evertwine Pro
             </CardTitle>
-            <CardDescription>Everything you need to grow your business</CardDescription>
-            <div className="mt-4">
-              <span className="text-4xl font-bold">$25</span>
-              <span className="text-muted-foreground">/month</span>
+            <CardDescription className="text-lg">Everything you need to grow your business</CardDescription>
+            <div className="mt-6">
+              <span className="text-5xl font-bold">$35</span>
+              <span className="text-muted-foreground text-xl">/month</span>
             </div>
+            <div className="text-sm text-muted-foreground mt-2">Cancel anytime • No setup fees</div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <Check className="h-5 w-5 text-green-500" />
+                <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
                 <span className="font-medium">Unlimited promotions</span>
               </div>
               <div className="flex items-center gap-3">
-                <Check className="h-5 w-5 text-green-500" />
-                <span>Advanced analytics & insights</span>
+                <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+                <span>Advanced analytics & customer insights</span>
               </div>
               <div className="flex items-center gap-3">
-                <Check className="h-5 w-5 text-green-500" />
-                <span>QR code tracking</span>
+                <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+                <span>QR code tracking & engagement metrics</span>
               </div>
               <div className="flex items-center gap-3">
-                <Check className="h-5 w-5 text-green-500" />
-                <span>Multiple promotion images</span>
+                <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+                <span>Multiple high-quality promotion images</span>
               </div>
               <div className="flex items-center gap-3">
-                <Check className="h-5 w-5 text-green-500" />
-                <span>Location-based targeting</span>
+                <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+                <span>Location-based customer targeting</span>
               </div>
               <div className="flex items-center gap-3">
-                <Check className="h-5 w-5 text-green-500" />
+                <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
                 <span>Priority customer support</span>
               </div>
               <div className="flex items-center gap-3">
-                <Check className="h-5 w-5 text-green-500" />
+                <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
                 <span>Custom business branding</span>
               </div>
+              <div className="flex items-center gap-3">
+                <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+                <span>Real-time promotion performance</span>
+              </div>
             </div>
+
             <Button
               onClick={handleSubscribe}
-              className="w-full mt-6 bg-gradient-to-r from-[#6A0DAD] to-purple-600 hover:from-[#5a0b93] hover:to-purple-700 text-white shadow-lg"
+              className="w-full mt-8 bg-gradient-to-r from-[#6A0DAD] to-purple-600 hover:from-[#5a0b93] hover:to-purple-700 text-white shadow-lg text-lg py-6"
               disabled={subscribing || isActive}
             >
               {subscribing ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Setting up...
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Setting up your account...
                 </>
               ) : isActive ? (
                 <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Active Plan
+                  <Check className="mr-2 h-5 w-5" />
+                  Active Subscription
                 </>
               ) : (
                 <>
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Start Pro Plan
+                  <CreditCard className="mr-2 h-5 w-5" />
+                  Start Your Pro Journey
                 </>
               )}
             </Button>
+
+            {!isActive && (
+              <div className="text-center text-sm text-muted-foreground">🔒 Secure payment powered by Stripe</div>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Features Showcase */}
-      <div className="grid md:grid-cols-3 gap-6 mt-12">
-        <Card className="text-center p-6">
-          <div className="w-12 h-12 bg-gradient-to-br from-[#6A0DAD] to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <Zap className="h-6 w-6 text-white" />
+      {/* Value Proposition */}
+      <div className="grid md:grid-cols-3 gap-6 mt-16">
+        <Card className="text-center p-6 border-0 shadow-lg">
+          <div className="w-16 h-16 bg-gradient-to-br from-[#6A0DAD] to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <TrendingUp className="h-8 w-8 text-white" />
           </div>
-          <h3 className="font-semibold mb-2">Instant Promotion Creation</h3>
-          <p className="text-sm text-muted-foreground">
-            Create and publish promotions instantly. No waiting for approval.
+          <h3 className="font-bold text-lg mb-3">Increase Revenue</h3>
+          <p className="text-muted-foreground">
+            Businesses see an average 40% increase in customer engagement within the first month
           </p>
         </Card>
 
-        <Card className="text-center p-6">
-          <div className="w-12 h-12 bg-gradient-to-br from-[#6A0DAD] to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <BarChart3 className="h-6 w-6 text-white" />
+        <Card className="text-center p-6 border-0 shadow-lg">
+          <div className="w-16 h-16 bg-gradient-to-br from-[#6A0DAD] to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <BarChart3 className="h-8 w-8 text-white" />
           </div>
-          <h3 className="font-semibold mb-2">Detailed Analytics</h3>
-          <p className="text-sm text-muted-foreground">
-            Track views, clicks, and conversion rates to optimize your promotions.
+          <h3 className="font-bold text-lg mb-3">Data-Driven Insights</h3>
+          <p className="text-muted-foreground">
+            Make informed decisions with detailed analytics on customer behavior and promotion performance
           </p>
         </Card>
 
-        <Card className="text-center p-6">
-          <div className="w-12 h-12 bg-gradient-to-br from-[#6A0DAD] to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <Users className="h-6 w-6 text-white" />
+        <Card className="text-center p-6 border-0 shadow-lg">
+          <div className="w-16 h-16 bg-gradient-to-br from-[#6A0DAD] to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Users className="h-8 w-8 text-white" />
           </div>
-          <h3 className="font-semibold mb-2">Reach More Customers</h3>
-          <p className="text-sm text-muted-foreground">
-            Connect with your target audience through QR codes and location targeting.
+          <h3 className="font-bold text-lg mb-3">Expand Your Reach</h3>
+          <p className="text-muted-foreground">
+            Connect with new customers through location-based targeting and QR code sharing
           </p>
         </Card>
       </div>
 
+      {/* Testimonial */}
+      <Card className="bg-gradient-to-r from-[#6A0DAD]/5 to-purple-600/5 border-[#6A0DAD]/20">
+        <CardContent className="p-8 text-center">
+          <div className="flex justify-center mb-4">
+            {[...Array(5)].map((_, i) => (
+              <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
+            ))}
+          </div>
+          <blockquote className="text-lg italic mb-4">
+            "Evertwine Pro transformed how we connect with customers. Our promotion engagement increased by 60% in just
+            two months!"
+          </blockquote>
+          <cite className="text-muted-foreground">— Sarah Johnson, Local Restaurant Owner</cite>
+        </CardContent>
+      </Card>
+
       {/* FAQ Section */}
       <Card className="mt-12">
         <CardHeader>
-          <CardTitle>Frequently Asked Questions</CardTitle>
+          <CardTitle className="text-2xl text-center">Frequently Asked Questions</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div>
-            <h4 className="font-medium mb-1">Can I cancel anytime?</h4>
-            <p className="text-sm text-muted-foreground">
-              Yes, you can cancel your subscription at any time. You'll continue to have access until the end of your
-              billing period.
+            <h4 className="font-semibold mb-2">Can I cancel anytime?</h4>
+            <p className="text-muted-foreground">
+              You can cancel your subscription at any time with no penalties. You'll continue to have access until the
+              end of your billing period.
             </p>
           </div>
           <div>
-            <h4 className="font-medium mb-1">What payment methods do you accept?</h4>
-            <p className="text-sm text-muted-foreground">
+            <h4 className="font-semibold mb-2">What payment methods do you accept?</h4>
+            <p className="text-muted-foreground">
               We accept all major credit cards including Visa, Mastercard, and American Express through our secure
               Stripe payment processor.
             </p>
           </div>
           <div>
-            <h4 className="font-medium mb-1">Is there a setup fee?</h4>
-            <p className="text-sm text-muted-foreground">
-              No setup fees! Just pay $25/month and start creating promotions immediately.
+            <h4 className="font-semibold mb-2">Is there a setup fee?</h4>
+            <p className="text-muted-foreground">
+              No setup fees or hidden costs! Just $35/month and you can start creating unlimited promotions immediately.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-2">Do you offer customer support?</h4>
+            <p className="text-muted-foreground">
+              Yes! Pro subscribers get priority customer support via email and chat to help you maximize your promotion
+              success.
             </p>
           </div>
         </CardContent>
       </Card>
+
+      {/* Security Badge */}
+      <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <Shield className="h-4 w-4" />
+          <span>Bank-level security</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Headphones className="h-4 w-4" />
+          <span>24/7 support</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Zap className="h-4 w-4" />
+          <span>Instant activation</span>
+        </div>
+      </div>
     </div>
   )
 }

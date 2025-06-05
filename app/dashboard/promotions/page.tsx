@@ -57,58 +57,13 @@ const categoryPlaceholders: Record<string, string> = {
 const MAX_PROMOTIONS = 2
 
 export default function PromotionsPage() {
-  const { user, userProfile, hasActiveSubscription, refreshSubscription, loading: authLoading } = useAuth()
+  const { user, hasActiveSubscription, loading: authLoading } = useAuth()
   const [promotions, setPromotions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-  const [debugMode, setDebugMode] = useState(false)
-
-  const refreshSubscriptionStatus = async () => {
-    setRefreshing(true)
-    await refreshSubscription()
-    setRefreshing(false)
-  }
-
-  const fixSubscription = async () => {
-    if (!user) return
-
-    setRefreshing(true)
-    try {
-      const response = await fetch("/api/fix-subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.uid }),
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        toast({
-          title: "Subscription Fixed",
-          description: result.message,
-        })
-        await refreshSubscription()
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Fix Failed",
-          description: result.error || "Failed to fix subscription",
-        })
-      }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fix subscription",
-      })
-    } finally {
-      setRefreshing(false)
-    }
-  }
 
   const fetchPromotions = async () => {
     if (!user) {
@@ -248,71 +203,20 @@ export default function PromotionsPage() {
       </div>
 
       {!hasActiveSubscription && (
-        <div className="space-y-4">
-          <Alert className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
-            <CreditCard className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-            <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-              <strong>Subscription Required:</strong> You need an active subscription ($25/month) to create and manage
-              promotions.{" "}
-              <Button
-                variant="link"
-                className="p-0 h-auto text-yellow-800 dark:text-yellow-200 underline"
-                onClick={() => router.push("/dashboard/billing")}
-              >
-                Subscribe now
-              </Button>
-            </AlertDescription>
-          </Alert>
-
-          {/* Debug section */}
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={refreshSubscriptionStatus} disabled={refreshing}>
-              {refreshing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Checking...
-                </>
-              ) : (
-                "Refresh Subscription Status"
-              )}
+        <Alert className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
+          <CreditCard className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+          <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+            <strong>Subscription Required:</strong> You need an active subscription ($35/month) to create and manage
+            promotions.{" "}
+            <Button
+              variant="link"
+              className="p-0 h-auto text-yellow-800 dark:text-yellow-200 underline"
+              onClick={() => router.push("/dashboard/billing")}
+            >
+              Subscribe now
             </Button>
-            <Button variant="outline" size="sm" onClick={fixSubscription} disabled={refreshing}>
-              {refreshing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Fixing...
-                </>
-              ) : (
-                "Fix Subscription"
-              )}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setDebugMode(!debugMode)}>
-              {debugMode ? "Hide" : "Show"} Debug Info
-            </Button>
-          </div>
-
-          {debugMode && user && (
-            <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
-              <AlertDescription className="text-blue-800 dark:text-blue-200 font-mono text-xs">
-                <div>User ID: {user.uid}</div>
-                <div>Has Active Subscription: {hasActiveSubscription.toString()}</div>
-                <div>Auth Loading: {authLoading.toString()}</div>
-                <div>Promotions Loading: {loading.toString()}</div>
-                <div>
-                  Debug URL:{" "}
-                  <a
-                    href={`/api/debug-subscription?userId=${user.uid}`}
-                    target="_blank"
-                    className="underline"
-                    rel="noreferrer"
-                  >
-                    Check API
-                  </a>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="bg-blue-50 dark:bg-blue-950/50 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
