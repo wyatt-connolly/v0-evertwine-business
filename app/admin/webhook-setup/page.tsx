@@ -11,7 +11,8 @@ export default function WebhookSetupPage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
 
-  const webhookUrl = "https://v0-business-evertwine-git-develop-wyattconnollys-projects.vercel.app/api/stripe-webhook"
+  // Use the public webhook endpoint that doesn't require authentication
+  const webhookUrl = "https://v0-business-evertwine-git-develop-wyattconnollys-projects.vercel.app/api/public-webhook"
 
   const loadWebhooks = async () => {
     setLoading(true)
@@ -50,7 +51,7 @@ export default function WebhookSetupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           eventType: "checkout.session.completed",
-          customerId: "cus_SRJg0AoEPZHH4g",
+          customerId: "cus_SRZzpwhBQjHkgz",
           userId: "2Z7iimyArINI07VgX1wZBSxLMGq1",
         }),
       })
@@ -58,6 +59,25 @@ export default function WebhookSetupPage() {
       setResult(data)
     } catch (error) {
       console.error("Error testing webhook:", error)
+    }
+    setLoading(false)
+  }
+
+  const updateCustomerSubscription = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch("/api/update-customer-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: "2Z7iimyArINI07VgX1wZBSxLMGq1",
+          customerId: "cus_SRZzpwhBQjHkgz",
+        }),
+      })
+      const data = await response.json()
+      setResult(data)
+    } catch (error) {
+      console.error("Error updating customer subscription:", error)
     }
     setLoading(false)
   }
@@ -102,6 +122,24 @@ export default function WebhookSetupPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Manual Subscription Update</CardTitle>
+          <CardDescription>Update subscription status for specific user</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-gray-500">User ID: 2Z7iimyArINI07VgX1wZBSxLMGq1</p>
+              <p className="text-sm text-gray-500">Customer ID: cus_SRZzpwhBQjHkgz</p>
+            </div>
+            <Button onClick={updateCustomerSubscription} disabled={loading}>
+              Update Subscription Status
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Existing Webhooks</CardTitle>
           <CardDescription>Current webhook endpoints configured in Stripe</CardDescription>
         </CardHeader>
@@ -134,45 +172,6 @@ export default function WebhookSetupPage() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Manual Testing</CardTitle>
-          <CardDescription>Test specific webhook scenarios</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button onClick={() => testWebhook()} className="w-full" disabled={loading}>
-            Test Successful Payment
-          </Button>
-
-          <Button
-            onClick={async () => {
-              setLoading(true)
-              try {
-                const response = await fetch("/api/test-webhook", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    eventType: "customer.subscription.deleted",
-                    customerId: "cus_SRJg0AoEPZHH4g",
-                    userId: "2Z7iimyArINI07VgX1wZBSxLMGq1",
-                  }),
-                })
-                const data = await response.json()
-                setResult(data)
-              } catch (error) {
-                console.error("Error:", error)
-              }
-              setLoading(false)
-            }}
-            variant="outline"
-            className="w-full"
-            disabled={loading}
-          >
-            Test Subscription Cancellation
-          </Button>
         </CardContent>
       </Card>
     </div>

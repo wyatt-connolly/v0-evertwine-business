@@ -2,18 +2,20 @@ import { type NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { db } from "@/lib/firebase-admin"
 
+// Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2024-06-20",
 })
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+// Get the webhook secret from environment variables
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
 export async function POST(request: NextRequest) {
-  console.log("🎯 Public Stripe webhook received")
+  console.log("🎯 Stripe webhook received at /api/public-webhook")
 
   try {
     const body = await request.text()
-    const signature = request.headers.get("stripe-signature")!
+    const signature = request.headers.get("stripe-signature")
 
     if (!signature) {
       console.error("❌ No Stripe signature found in headers")
