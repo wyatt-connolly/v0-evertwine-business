@@ -1,15 +1,28 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Inter, Poppins } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
+import { AuthProvider } from "@/contexts/auth-context"
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+})
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-poppins",
+})
 
 export const metadata: Metadata = {
   title: "Evertwine Business Portal",
-  description: "Manage your business promotions and analytics with Evertwine",
+  description: "Manage your business promotions with Evertwine - The modern way to grow your business",
+  keywords: ["business", "promotions", "marketing", "local business"],
+  authors: [{ name: "Evertwine" }],
+  viewport: "width=device-width, initial-scale=1",
   icons: {
     icon: [
       { url: "/images/evertwine-logo.png", sizes: "32x32", type: "image/png" },
@@ -22,20 +35,18 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode
-}) {
+}>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="icon" href="/images/evertwine-logo.png" />
-        <link rel="apple-touch-icon" href="/images/evertwine-logo.png" />
-      </head>
-      <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
-          <Toaster />
-        </ThemeProvider>
+      <body className={`${inter.variable} ${poppins.variable} font-sans antialiased min-h-screen gradient-mesh`}>
+        <AuthProvider>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            <div className="animate-fade-in">{children}</div>
+            <Toaster />
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   )
