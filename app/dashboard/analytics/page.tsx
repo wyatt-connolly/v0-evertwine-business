@@ -42,64 +42,6 @@ export default function AnalyticsPage() {
     conversionRate: 0,
   })
 
-  // Function to fetch QR code interaction data
-  const fetchQrCodeData = async () => {
-    if (!user) return
-
-    try {
-      // Get QR code interactions from Firestore
-      const qrInteractionsRef = collection(db, "qr_interactions")
-      const qrQuery = query(
-        qrInteractionsRef,
-        where("business_id", "==", user.uid),
-        orderBy("timestamp", "desc"),
-        limit(100),
-      )
-
-      // Set up real-time listener for QR code interactions
-      const unsubscribe = onSnapshot(qrQuery, (snapshot) => {
-        const interactions = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-
-        // Count shown and redeemed QR codes
-        const shown = interactions.filter((item) => item.action === "shown").length
-        const redeemed = interactions.filter((item) => item.action === "redeemed").length
-        const conversionRate = shown > 0 ? Math.round((redeemed / shown) * 100) : 0
-
-        setQrCodeStats({
-          shown,
-          redeemed,
-          conversionRate,
-        })
-
-        // Process data for chart - group by day
-        const last7Days = getLast7Days()
-        const chartData = last7Days.map((date) => {
-          const dayStr = date.toISOString().split("T")[0]
-          const dayInteractions = interactions.filter((item) => {
-            const itemDate = new Date(item.timestamp.seconds * 1000)
-            return itemDate.toISOString().split("T")[0] === dayStr
-          })
-
-          return {
-            date: formatDate(date),
-            shown: dayInteractions.filter((item) => item.action === "shown").length,
-            redeemed: dayInteractions.filter((item) => item.action === "redeemed").length,
-          }
-        })
-
-        setQrCodeData(chartData)
-      })
-
-      // Clean up listener on component unmount
-      return unsubscribe
-    } catch (error) {
-      console.error("Error fetching QR code data:", error)
-    }
-  }
-
   // Helper function to get last 7 days
   const getLast7Days = () => {
     const result = []
@@ -117,6 +59,8 @@ export default function AnalyticsPage() {
   }
 
   useEffect(() => {
+    let unsubscribeQR: (() => void) | null = null
+
     const fetchPromotions = async () => {
       if (!user) return
 
@@ -145,7 +89,6 @@ export default function AnalyticsPage() {
         setCtr(views > 0 ? Math.round((clicks / views) * 100) : 0)
 
         // Generate sample data for charts based on real totals
-        // In a real app, you'd fetch historical data from the database
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"]
 
         // Distribute total views across months with some randomness
@@ -175,20 +118,75 @@ export default function AnalyticsPage() {
       }
     }
 
+    const setupQRCodeListener = async () => {
+      if (!user) return
+
+      try {
+        // Get QR code interactions from Firestore
+        const qrInteractionsRef = collection(db, "qr_interactions")
+        const qrQuery = query(
+          qrInteractionsRef,
+          where("business_id", "==", user.uid),
+          orderBy("timestamp", "desc"),
+          limit(100),
+        )
+
+        // Set up real-time listener for QR code interactions
+        unsubscribeQR = onSnapshot(qrQuery, (snapshot) => {
+          const interactions = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
+
+          // Count shown and redeemed QR codes
+          const shown = interactions.filter((item) => item.action === "shown").length
+          const redeemed = interactions.filter((item) => item.action === "redeemed").length
+          const conversionRate = shown > 0 ? Math.round((redeemed / shown) * 100) : 0
+
+          setQrCodeStats({
+            shown,
+            redeemed,
+            conversionRate,
+          })
+
+          // Process data for chart - group by day
+          const last7Days = getLast7Days()
+          const chartData = last7Days.map((date) => {
+            const dayStr = date.toISOString().split("T")[0]
+            const dayInteractions = interactions.filter((item) => {
+              const itemDate = new Date(item.timestamp.seconds * 1000)
+              return itemDate.toISOString().split("T")[0] === dayStr
+            })
+
+            return {
+              date: formatDate(date),
+              shown: dayInteractions.filter((item) => item.action === "shown").length,
+              redeemed: dayInteractions.filter((item) => item.action === "redeemed").length,
+            }
+          })
+
+          setQrCodeData(chartData)
+        })
+      } catch (error) {
+        console.error("Error setting up QR code listener:", error)
+      }
+    }
+
+    // Initialize data fetching
     fetchPromotions()
+    setupQRCodeListener()
 
-    // Set up QR code data listener
-    const unsubscribe = fetchQrCodeData()
-
-    // Clean up listener on component unmount
+    // Cleanup function
     return () => {
-      if (unsubscribe) unsubscribe()
+      if (unsubscribeQR) {
+        unsubscribeQR()
+      }
     }
   }, [user])
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await fetchQrCodeData()
+    // Just toggle the refreshing state for visual feedback
     setTimeout(() => {
       setRefreshing(false)
     }, 1000)
