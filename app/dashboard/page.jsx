@@ -83,7 +83,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-600 to-indigo-600 p-8 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-700 p-8 text-white">
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative">
           <div className="flex items-center gap-3 mb-4">
@@ -92,19 +92,19 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold">Welcome back!</h1>
-              <p className="text-indigo-100">Ready to grow your business today?</p>
+              <p className="text-purple-100">Ready to grow your business today?</p>
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 mt-6">
             <Link href="/dashboard/promotions/new">
-              <Button size="lg" className="bg-white text-indigo-600 hover:bg-white/90 font-semibold shadow-lg">
+              <Button size="lg" className="bg-white text-purple-700 hover:bg-gray-50 font-semibold shadow-lg border-0">
                 <PlusCircle className="mr-2 h-5 w-5" />
                 Create New Promotion
               </Button>
             </Link>
             <Link href="/dashboard/analytics">
-              <Button size="lg" className="bg-white text-indigo-600 hover:bg-white/90 font-semibold shadow-lg">
+              <Button size="lg" className="bg-white text-purple-700 hover:bg-gray-50 font-semibold shadow-lg border-0">
                 <TrendingUp className="mr-2 h-5 w-5" />
                 View Analytics
               </Button>
@@ -183,14 +183,14 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-indigo-600" />
+                  <Calendar className="h-5 w-5 text-purple-600" />
                   Recent Activity
                 </CardTitle>
                 <CardDescription>Your latest business updates</CardDescription>
               </div>
               <Badge
                 variant="secondary"
-                className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300"
+                className="bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300"
               >
                 Live
               </Badge>
@@ -253,11 +253,7 @@ export default function Dashboard() {
                   <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">Track your promotion performance</p>
                 </div>
                 <Link href="/dashboard/analytics">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-purple-300 bg-white/80 text-purple-700 hover:bg-purple-100 dark:bg-transparent dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-900/30"
-                  >
+                  <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white border-0">
                     View Analytics
                     <ArrowUpRight className="ml-1 h-3 w-3" />
                   </Button>
@@ -272,7 +268,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-indigo-600" />
+                  <Users className="h-5 w-5 text-purple-600" />
                   Quick Actions
                 </CardTitle>
                 <CardDescription>Common tasks to grow your business</CardDescription>
@@ -284,12 +280,12 @@ export default function Dashboard() {
               <Link href="/dashboard/promotions/new">
                 <Button
                   variant="outline"
-                  className="w-full justify-start h-auto p-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 dark:hover:from-indigo-950/30 dark:hover:to-purple-950/30 transition-all duration-200"
+                  className="w-full justify-start h-auto p-4 border-purple-200 hover:bg-purple-50 hover:border-purple-300 dark:border-purple-700 dark:hover:bg-purple-950/30 dark:hover:border-purple-600 transition-all duration-200"
                   data-walkthrough="create-promotion"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
-                      <PlusCircle className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
+                      <PlusCircle className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div className="text-left">
                       <div className="font-medium">Create New Promotion</div>
@@ -303,7 +299,7 @@ export default function Dashboard() {
               <Link href="/dashboard/analytics">
                 <Button
                   variant="outline"
-                  className="w-full justify-start h-auto p-4 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 dark:hover:from-green-950/30 dark:hover:to-emerald-950/30 transition-all duration-200"
+                  className="w-full justify-start h-auto p-4 border-green-200 hover:bg-green-50 hover:border-green-300 dark:border-green-700 dark:hover:bg-green-950/30 dark:hover:border-green-600 transition-all duration-200"
                 >
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-lg">
@@ -321,11 +317,11 @@ export default function Dashboard() {
               <Link href="/dashboard/settings">
                 <Button
                   variant="outline"
-                  className="w-full justify-start h-auto p-4 hover:bg-gradient-to-r hover:from-purple-50 hover:to-violet-50 dark:hover:from-purple-950/30 dark:hover:to-violet-950/30 transition-all duration-200"
+                  className="w-full justify-start h-auto p-4 border-orange-200 hover:bg-orange-50 hover:border-orange-300 dark:border-orange-700 dark:hover:bg-orange-950/30 dark:hover:border-orange-600 transition-all duration-200"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
-                      <Settings className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                    <div className="p-2 bg-orange-100 dark:bg-orange-900/50 rounded-lg">
+                      <Settings className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                     </div>
                     <div className="text-left">
                       <div className="font-medium">Update Profile</div>

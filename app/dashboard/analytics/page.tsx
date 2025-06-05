@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip as RechartsTooltip,
+  Tooltip,
   ResponsiveContainer,
   LineChart,
   Line,
@@ -21,9 +21,8 @@ import {
 import { collection, query, where, getDocs, orderBy, limit, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/contexts/auth-context"
-import { AlertCircle, Loader2, RefreshCw } from "lucide-react"
+import { Loader2, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function AnalyticsPage() {
   const { user } = useAuth()
@@ -42,7 +41,6 @@ export default function AnalyticsPage() {
     redeemed: 0,
     conversionRate: 0,
   })
-  const [qrError, setQrError] = useState<string | null>(null)
 
   // Helper function to get last 7 days
   const getLast7Days = () => {
@@ -58,15 +56,6 @@ export default function AnalyticsPage() {
   // Helper function to format date
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-  }
-
-  // Generate empty QR code data for fallback
-  const generateEmptyQRData = () => {
-    return getLast7Days().map((date) => ({
-      date: formatDate(date),
-      shown: 0,
-      redeemed: 0,
-    }))
   }
 
   useEffect(() => {
@@ -133,8 +122,6 @@ export default function AnalyticsPage() {
       if (!user) return
 
       try {
-        setQrError(null)
-
         // Get QR code interactions from Firestore
         const qrInteractionsRef = collection(db, "qr_interactions")
         const qrQuery = query(
@@ -145,62 +132,43 @@ export default function AnalyticsPage() {
         )
 
         // Set up real-time listener for QR code interactions
-        unsubscribeQR = onSnapshot(
-          qrQuery,
-          (snapshot) => {
-            const interactions = snapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-            }))
+        unsubscribeQR = onSnapshot(qrQuery, (snapshot) => {
+          const interactions = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
 
-            // Count shown and redeemed QR codes
-            const shown = interactions.filter((item) => item.action === "shown").length
-            const redeemed = interactions.filter((item) => item.action === "redeemed").length
-            const conversionRate = shown > 0 ? Math.round((redeemed / shown) * 100) : 0
+          // Count shown and redeemed QR codes
+          const shown = interactions.filter((item) => item.action === "shown").length
+          const redeemed = interactions.filter((item) => item.action === "redeemed").length
+          const conversionRate = shown > 0 ? Math.round((redeemed / shown) * 100) : 0
 
-            setQrCodeStats({
-              shown,
-              redeemed,
-              conversionRate,
+          setQrCodeStats({
+            shown,
+            redeemed,
+            conversionRate,
+          })
+
+          // Process data for chart - group by day
+          const last7Days = getLast7Days()
+          const chartData = last7Days.map((date) => {
+            const dayStr = date.toISOString().split("T")[0]
+            const dayInteractions = interactions.filter((item) => {
+              const itemDate = new Date(item.timestamp.seconds * 1000)
+              return itemDate.toISOString().split("T")[0] === dayStr
             })
 
-            // Process data for chart - group by day
-            const last7Days = getLast7Days()
-            const chartData = last7Days.map((date) => {
-              const dayStr = date.toISOString().split("T")[0]
-              const dayInteractions = interactions.filter((item) => {
-                const itemDate = new Date(item.timestamp.seconds * 1000)
-                return itemDate.toISOString().split("T")[0] === dayStr
-              })
+            return {
+              date: formatDate(date),
+              shown: dayInteractions.filter((item) => item.action === "shown").length,
+              redeemed: dayInteractions.filter((item) => item.action === "redeemed").length,
+            }
+          })
 
-              return {
-                date: formatDate(date),
-                shown: dayInteractions.filter((item) => item.action === "shown").length,
-                redeemed: dayInteractions.filter((item) => item.action === "redeemed").length,
-              }
-            })
-
-            setQrCodeData(chartData)
-          },
-          (error) => {
-            console.error("QR code listener error:", error)
-            setQrError("Unable to access QR code data. Please check your permissions.")
-
-            // Set empty data for graceful fallback
-            setQrCodeData(generateEmptyQRData())
-            setQrCodeStats({
-              shown: 0,
-              redeemed: 0,
-              conversionRate: 0,
-            })
-          },
-        )
+          setQrCodeData(chartData)
+        })
       } catch (error) {
         console.error("Error setting up QR code listener:", error)
-        setQrError("Unable to access QR code data. Please check your permissions.")
-
-        // Set empty data for graceful fallback
-        setQrCodeData(generateEmptyQRData())
       }
     }
 
@@ -216,7 +184,7 @@ export default function AnalyticsPage() {
     }
   }, [user])
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true)
     // Just toggle the refreshing state for visual feedback
     setTimeout(() => {
@@ -315,7 +283,7 @@ export default function AnalyticsPage() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
-                      <RechartsTooltip />
+                      <Tooltip />
                       <Line type="monotone" dataKey="views" stroke="#6A0DAD" strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
@@ -334,7 +302,7 @@ export default function AnalyticsPage() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
-                      <RechartsTooltip />
+                      <Tooltip />
                       <Bar dataKey="clicks" fill="#6A0DAD" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -358,14 +326,6 @@ export default function AnalyticsPage() {
               Refresh Data
             </Button>
           </div>
-
-          {qrError && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Access Error</AlertTitle>
-              <AlertDescription>{qrError}</AlertDescription>
-            </Alert>
-          )}
 
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
@@ -410,7 +370,7 @@ export default function AnalyticsPage() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" />
                       <YAxis />
-                      <RechartsTooltip />
+                      <Tooltip />
                       <Legend />
                       <Bar dataKey="shown" name="QR Shown" fill="#6A0DAD" />
                       <Bar dataKey="redeemed" name="QR Redeemed" fill="#9333EA" />
@@ -431,7 +391,7 @@ export default function AnalyticsPage() {
                     <PieChart>
                       <Pie
                         data={[
-                          { name: "Shown", value: Math.max(0, qrCodeStats.shown - qrCodeStats.redeemed) },
+                          { name: "Shown", value: qrCodeStats.shown - qrCodeStats.redeemed },
                           { name: "Redeemed", value: qrCodeStats.redeemed },
                         ]}
                         cx="50%"
@@ -446,7 +406,7 @@ export default function AnalyticsPage() {
                           <Cell key={`cell-${index}`} fill={QR_COLORS[index % QR_COLORS.length]} />
                         ))}
                       </Pie>
-                      <RechartsTooltip />
+                      <Tooltip />
                       <Legend />
                     </PieChart>
                   </ResponsiveContainer>
@@ -461,45 +421,36 @@ export default function AnalyticsPage() {
               <CardDescription>Analysis of your QR code usage and effectiveness</CardDescription>
             </CardHeader>
             <CardContent>
-              {qrError ? (
-                <div className="p-4 bg-gray-50 dark:bg-gray-800/20 rounded-lg">
-                  <p className="text-center text-muted-foreground">
-                    QR code analytics are currently unavailable. Please check your permissions or contact support.
-                  </p>
+              <div className="space-y-4">
+                <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                  <h3 className="font-medium text-purple-900 dark:text-purple-300 mb-2">Key Insights</h3>
+                  <ul className="list-disc pl-5 space-y-1 text-sm text-purple-800 dark:text-purple-200">
+                    <li>
+                      Your QR codes have been shown {qrCodeStats.shown} times and redeemed {qrCodeStats.redeemed} times
+                    </li>
+                    <li>Your current redemption rate is {qrCodeStats.conversionRate}%</li>
+                    {qrCodeStats.conversionRate < 10 && (
+                      <li>Consider offering more incentives to increase redemption rates</li>
+                    )}
+                    {qrCodeStats.conversionRate >= 10 && qrCodeStats.conversionRate < 30 && (
+                      <li>Your redemption rate is good, but could be improved with better offers</li>
+                    )}
+                    {qrCodeStats.conversionRate >= 30 && (
+                      <li>Excellent redemption rate! Your offers are compelling to customers</li>
+                    )}
+                  </ul>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                    <h3 className="font-medium text-purple-900 dark:text-purple-300 mb-2">Key Insights</h3>
-                    <ul className="list-disc pl-5 space-y-1 text-sm text-purple-800 dark:text-purple-200">
-                      <li>
-                        Your QR codes have been shown {qrCodeStats.shown} times and redeemed {qrCodeStats.redeemed}{" "}
-                        times
-                      </li>
-                      <li>Your current redemption rate is {qrCodeStats.conversionRate}%</li>
-                      {qrCodeStats.conversionRate < 10 && (
-                        <li>Consider offering more incentives to increase redemption rates</li>
-                      )}
-                      {qrCodeStats.conversionRate >= 10 && qrCodeStats.conversionRate < 30 && (
-                        <li>Your redemption rate is good, but could be improved with better offers</li>
-                      )}
-                      {qrCodeStats.conversionRate >= 30 && (
-                        <li>Excellent redemption rate! Your offers are compelling to customers</li>
-                      )}
-                    </ul>
-                  </div>
 
-                  <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
-                    <h3 className="font-medium text-indigo-900 dark:text-indigo-300 mb-2">Recommendations</h3>
-                    <ul className="list-disc pl-5 space-y-1 text-sm text-indigo-800 dark:text-indigo-200">
-                      <li>Make your QR codes more visible in your physical location</li>
-                      <li>Add clear instructions on how to redeem QR codes</li>
-                      <li>Consider time-limited offers to create urgency</li>
-                      <li>Test different incentives to see what drives higher redemption rates</li>
-                    </ul>
-                  </div>
+                <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+                  <h3 className="font-medium text-indigo-900 dark:text-indigo-300 mb-2">Recommendations</h3>
+                  <ul className="list-disc pl-5 space-y-1 text-sm text-indigo-800 dark:text-indigo-200">
+                    <li>Make your QR codes more visible in your physical location</li>
+                    <li>Add clear instructions on how to redeem QR codes</li>
+                    <li>Consider time-limited offers to create urgency</li>
+                    <li>Test different incentives to see what drives higher redemption rates</li>
+                  </ul>
                 </div>
-              )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
