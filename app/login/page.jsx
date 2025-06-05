@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Info, Eye, EyeOff, ShieldAlert, ArrowLeft } from "lucide-react"
+import { Loader2, Info, Eye, EyeOff, ShieldAlert, Home } from "lucide-react"
 import FirebaseError from "@/components/firebase-error"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
@@ -155,13 +155,13 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      {/* Back to Home Link */}
+      {/* Enhanced Back to Home Button */}
       <Link
         href="/"
-        className="absolute top-4 left-4 flex items-center text-sm text-gray-600 hover:text-blue-600 transition-colors"
+        className="absolute top-6 left-6 group flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full shadow-sm hover:shadow-md hover:bg-white transition-all duration-200 hover:-translate-y-0.5"
       >
-        <ArrowLeft className="h-4 w-4 mr-1" />
-        Back to Home
+        <Home className="h-4 w-4 text-gray-600 group-hover:text-blue-600 transition-colors" />
+        <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">Home</span>
       </Link>
 
       <Card className="w-full max-w-md shadow-lg rounded-2xl">
@@ -253,12 +253,15 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="relative my-6">
+          {/* Enhanced Divider */}
+          <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
+              <span className="w-full border-t border-gray-200" />
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-muted-foreground">Or continue with</span>
+            <div className="relative flex justify-center">
+              <span className="bg-white px-6 py-1 text-sm font-medium text-gray-500 rounded-full border border-gray-200">
+                or sign in with
+              </span>
             </div>
           </div>
 
