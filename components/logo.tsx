@@ -6,9 +6,10 @@ interface LogoProps {
   className?: string
   showText?: boolean
   size?: "sm" | "md" | "lg"
+  rounded?: boolean
 }
 
-export function Logo({ className = "", showText = true, size = "md" }: LogoProps) {
+export function Logo({ className = "", showText = true, size = "md", rounded = true }: LogoProps) {
   const sizeClasses = {
     sm: { width: 24, height: 24 },
     md: { width: 32, height: 32 },
@@ -31,7 +32,7 @@ export function Logo({ className = "", showText = true, size = "md" }: LogoProps
           alt="Evertwine Logo"
           width={logoSize.width}
           height={logoSize.height}
-          className="rounded-md"
+          className={rounded ? "rounded-xl" : ""}
           priority
         />
       </div>
