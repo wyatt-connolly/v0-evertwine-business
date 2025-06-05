@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, AlertCircle, Info } from "lucide-react"
+import { Loader2, AlertCircle, Info, Eye, EyeOff, CheckCircle, XCircle } from "lucide-react"
 import PhoneInput from "react-phone-input-2"
 import "react-phone-input-2/lib/style.css"
 import FirestorePermissionError from "@/components/firestore-permission-error"
@@ -28,20 +28,40 @@ export default function SignupPage() {
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [socialLoading, setSocialLoading] = useState("")
   const [permissionError, setPermissionError] = useState(false)
   const [duplicateEmail, setDuplicateEmail] = useState(false)
   const [error, setError] = useState("")
   const [isPreview, setIsPreview] = useState(false)
+  const [passwordValidation, setPasswordValidation] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+    match: false,
+  })
   const router = useRouter()
   const { toast } = useToast()
 
   // Check if we're in a preview environment
   useEffect(() => {
-    // Only set preview mode if we're in a known preview environment
     setIsPreview(isPreviewEnvironment())
   }, [])
+
+  // Password validation
+  useEffect(() => {
+    setPasswordValidation({
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /\d/.test(password),
+      match: password === confirmPassword && password.length > 0 && confirmPassword.length > 0,
+    })
+  }, [password, confirmPassword])
 
   // Handle redirect result from social login
   useEffect(() => {
@@ -49,7 +69,6 @@ export default function SignupPage() {
       try {
         const user = await handleAuthRedirect()
         if (user) {
-          // If we got a user from the redirect, navigate to dashboard
           router.push("/dashboard")
         }
       } catch (error) {
@@ -68,12 +87,20 @@ export default function SignupPage() {
     return <FirebaseError />
   }
 
+  const isPasswordValid = Object.values(passwordValidation).every(Boolean)
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     setPermissionError(false)
     setDuplicateEmail(false)
     setError("")
+
+    if (!isPasswordValid) {
+      setError("Please ensure your password meets all requirements and passwords match.")
+      setIsLoading(false)
+      return
+    }
 
     try {
       await signUpFunction(email, password, {
@@ -82,29 +109,38 @@ export default function SignupPage() {
       })
 
       toast({
-        title: "Account created successfully",
-        description: "Welcome to Evertwine Business Portal!",
+        title: "Account created successfully! 🎉",
+        description: "Welcome to Evertwine Business Portal! You can now create promotions.",
+        className: "bg-green-50 border-green-200",
+        duration: 5000,
       })
 
-      router.push("/dashboard") // Redirect to dashboard instead of onboarding
+      router.push("/dashboard")
     } catch (error) {
       console.error("Signup error:", error)
 
-      // Check if it's a duplicate email error
+      let errorMessage = "Failed to create account. Please try again."
+
       if (error.message === "EMAIL_ALREADY_EXISTS") {
         setDuplicateEmail(true)
-      }
-      // Check if it's a permission error
-      else if (
+        errorMessage = "This email address is already registered. Please use a different email or try logging in."
+      } else if (
         error.message &&
         (error.message.includes("Missing or insufficient permissions") ||
           error.message.includes("permission-denied") ||
           error.message.includes("security rules are preventing writes"))
       ) {
         setPermissionError(true)
-      } else {
-        setError(error.message || "Failed to create account. Please try again.")
+        return
       }
+
+      setError(errorMessage)
+      toast({
+        variant: "destructive",
+        title: "Account Creation Failed",
+        description: errorMessage,
+        duration: 5000,
+      })
     } finally {
       setIsLoading(false)
     }
@@ -125,20 +161,32 @@ export default function SignupPage() {
       console.log("🚀 Starting Google sign-up...")
       await signInWithGoogle()
       console.log("✅ Google sign-up successful")
-      // The redirect will happen automatically, so we don't need to do anything here
+
+      toast({
+        title: "Account created successfully! 🎉",
+        description: "Welcome to Evertwine Business Portal!",
+        className: "bg-green-50 border-green-200",
+      })
     } catch (error) {
       console.error("❌ Google sign-up error:", error)
 
-      // More specific error messages
+      let errorMessage = "Failed to sign up with Google. Please try again."
+
       if (error.code === "auth/popup-blocked") {
-        setError("Popup was blocked. Please allow popups for this site and try again.")
+        errorMessage = "Popup was blocked. Please allow popups for this site and try again."
       } else if (error.code === "auth/popup-closed-by-user") {
-        setError("Sign-up was cancelled. Please try again.")
+        errorMessage = "Sign-up was cancelled. Please try again."
       } else if (error.code === "auth/unauthorized-domain") {
-        setError("This domain is not authorized for Google sign-in. Please contact support.")
-      } else {
-        setError(error.message || "Failed to sign up with Google. Please try again.")
+        errorMessage = "This domain is not authorized for Google sign-in. Please contact support."
       }
+
+      setError(errorMessage)
+      toast({
+        variant: "destructive",
+        title: "Google Sign-up Failed",
+        description: errorMessage,
+        duration: 5000,
+      })
 
       setSocialLoading("")
     }
@@ -170,19 +218,24 @@ export default function SignupPage() {
           )}
 
           {duplicateEmail && (
-            <Alert variant="destructive" className="mb-4">
+            <Alert variant="destructive" className="mb-4 border-red-200 bg-red-50">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Email already in use</AlertTitle>
-              <AlertDescription>
-                This email address is already registered. Please use a different email or try logging in.
+              <AlertTitle className="text-red-800 font-semibold">Email Already Registered</AlertTitle>
+              <AlertDescription className="text-red-700">
+                This email address is already registered. Please use a different email or{" "}
+                <Link href="/login" className="underline font-medium">
+                  try logging in
+                </Link>
+                .
               </AlertDescription>
             </Alert>
           )}
 
-          {error && (
-            <Alert variant="destructive" className="mb-4">
+          {error && !duplicateEmail && (
+            <Alert variant="destructive" className="mb-4 border-red-200 bg-red-50">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertTitle className="text-red-800 font-semibold">Registration Error</AlertTitle>
+              <AlertDescription className="text-red-700">{error}</AlertDescription>
             </Alert>
           )}
 
@@ -201,7 +254,8 @@ export default function SignupPage() {
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value)
-                  setDuplicateEmail(false) // Clear duplicate email error when email changes
+                  setDuplicateEmail(false)
+                  setError("")
                 }}
                 required
                 className={duplicateEmail ? "border-red-500 focus-visible:ring-red-500" : ""}
@@ -231,16 +285,111 @@ export default function SignupPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-400" />
+                  )}
+                </Button>
+              </div>
+
+              {/* Password Requirements */}
+              {password && (
+                <div className="mt-2 space-y-1 text-xs">
+                  <div
+                    className={`flex items-center gap-1 ${passwordValidation.length ? "text-green-600" : "text-gray-500"}`}
+                  >
+                    {passwordValidation.length ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                    At least 8 characters
+                  </div>
+                  <div
+                    className={`flex items-center gap-1 ${passwordValidation.uppercase ? "text-green-600" : "text-gray-500"}`}
+                  >
+                    {passwordValidation.uppercase ? (
+                      <CheckCircle className="h-3 w-3" />
+                    ) : (
+                      <XCircle className="h-3 w-3" />
+                    )}
+                    One uppercase letter
+                  </div>
+                  <div
+                    className={`flex items-center gap-1 ${passwordValidation.lowercase ? "text-green-600" : "text-gray-500"}`}
+                  >
+                    {passwordValidation.lowercase ? (
+                      <CheckCircle className="h-3 w-3" />
+                    ) : (
+                      <XCircle className="h-3 w-3" />
+                    )}
+                    One lowercase letter
+                  </div>
+                  <div
+                    className={`flex items-center gap-1 ${passwordValidation.number ? "text-green-600" : "text-gray-500"}`}
+                  >
+                    {passwordValidation.number ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                    One number
+                  </div>
+                </div>
+              )}
             </div>
 
-            <Button type="submit" className="w-full bg-[#6A0DAD] hover:bg-[#5a0b93]" disabled={isLoading}>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-400" />
+                  )}
+                </Button>
+              </div>
+
+              {/* Password Match Indicator */}
+              {confirmPassword && (
+                <div
+                  className={`flex items-center gap-1 text-xs mt-1 ${passwordValidation.match ? "text-green-600" : "text-red-500"}`}
+                >
+                  {passwordValidation.match ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                  {passwordValidation.match ? "Passwords match" : "Passwords do not match"}
+                </div>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full bg-[#6A0DAD] hover:bg-[#5a0b93]"
+              disabled={isLoading || !isPasswordValid}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
