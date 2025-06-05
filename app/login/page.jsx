@@ -3,14 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import {
-  signIn,
-  signInWithGoogle,
-  signInWithFacebook,
-  useAuthState,
-  isPreviewEnvironment,
-  handleAuthRedirect,
-} from "@/lib/auth-utils"
+import { signIn, signInWithGoogle, signInWithFacebook, useAuthState, isPreviewEnvironment } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -33,36 +26,16 @@ export default function LoginPage() {
 
   // Check if we're in a preview environment
   useEffect(() => {
-    // Only set preview mode if we're in a known preview environment
     setIsPreview(isPreviewEnvironment())
   }, [])
 
   // Redirect to dashboard if already logged in
   useEffect(() => {
     if (user && !loading) {
+      console.log("✅ User authenticated, redirecting to dashboard:", user.email)
       router.push("/dashboard")
     }
   }, [user, loading, router])
-
-  // Handle redirect result from social login
-  useEffect(() => {
-    const checkRedirectResult = async () => {
-      try {
-        const user = await handleAuthRedirect()
-        if (user) {
-          // If we got a user from the redirect, navigate to dashboard
-          router.push("/dashboard")
-        }
-      } catch (error) {
-        console.error("Error handling redirect result:", error)
-        setError(error.message || "Failed to complete social sign-in. Please try again.")
-      }
-    }
-
-    if (!loading && !user) {
-      checkRedirectResult()
-    }
-  }, [loading])
 
   // If Firebase is not initialized, show the error component
   if (!firebaseInitialized) {
@@ -76,7 +49,7 @@ export default function LoginPage() {
 
     try {
       await signIn(email, password)
-      router.push("/dashboard")
+      // Don't manually redirect here - let the useEffect handle it
     } catch (error) {
       console.error("Login error:", error)
       setError(error.message || "Failed to sign in. Please check your credentials.")
@@ -98,9 +71,15 @@ export default function LoginPage() {
 
     try {
       console.log("🚀 Starting Google sign-in...")
-      await signInWithGoogle()
-      console.log("✅ Google sign-in successful")
-      // The redirect will happen automatically, so we don't need to do anything here
+      const user = await signInWithGoogle()
+      console.log("✅ Google sign-in successful:", user.email)
+
+      toast({
+        title: "Welcome back!",
+        description: `Signed in as ${user.email}`,
+      })
+
+      // Don't manually redirect here - let the useEffect handle it
     } catch (error) {
       console.error("❌ Google sign-in error:", error)
 
@@ -132,7 +111,7 @@ export default function LoginPage() {
 
     try {
       await signInWithFacebook()
-      // The redirect will happen automatically, so we don't need to do anything here
+      // Don't manually redirect here - let the useEffect handle it
     } catch (error) {
       console.error("Facebook sign-in error:", error)
       setError(error.message || "Failed to sign in with Facebook. Please try again.")
@@ -140,11 +119,14 @@ export default function LoginPage() {
     }
   }
 
-  // If already logged in and loading, show loading spinner
-  if (loading && user) {
+  // Show loading spinner while checking auth state
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-[#6A0DAD]" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-[#6A0DAD] mx-auto mb-4" />
+          <p className="text-sm text-gray-600">Checking authentication...</p>
+        </div>
       </div>
     )
   }
