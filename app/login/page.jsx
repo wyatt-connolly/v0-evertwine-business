@@ -97,11 +97,24 @@ export default function LoginPage() {
     setError("")
 
     try {
+      console.log("🚀 Starting Google sign-in...")
       await signInWithGoogle()
+      console.log("✅ Google sign-in successful")
       // The redirect will happen automatically, so we don't need to do anything here
     } catch (error) {
-      console.error("Google sign-in error:", error)
-      setError(error.message || "Failed to sign in with Google. Please try again.")
+      console.error("❌ Google sign-in error:", error)
+
+      // More specific error messages
+      if (error.code === "auth/popup-blocked") {
+        setError("Popup was blocked. Please allow popups for this site and try again.")
+      } else if (error.code === "auth/popup-closed-by-user") {
+        setError("Sign-in was cancelled. Please try again.")
+      } else if (error.code === "auth/unauthorized-domain") {
+        setError("This domain is not authorized for Google sign-in. Please contact support.")
+      } else {
+        setError(error.message || "Failed to sign in with Google. Please try again.")
+      }
+
       setSocialLoading("")
     }
   }
