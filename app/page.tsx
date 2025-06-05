@@ -49,7 +49,7 @@ export default function HomePage() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Link href="/signup">
+              <Link href="https://evertwine.social" target="_blank" rel="noopener noreferrer">
                 <Button
                   size="lg"
                   variant="outline"
@@ -156,7 +156,7 @@ export default function HomePage() {
           <Link href="/signup">
             <Button
               size="lg"
-              className="bg-white text-evertwine-700 hover:bg-gray-100 hover:text-evertwine-800 hover-lift font-medium px-8 py-6"
+              className="bg-white text-evertwine-700 hover:bg-gray-50 hover:text-evertwine-800 hover-lift font-medium px-8 py-6 shadow-lg"
             >
               Start Your Free Trial
               <ArrowRight className="ml-2 h-5 w-5" />
