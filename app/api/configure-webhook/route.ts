@@ -1,12 +1,22 @@
 import { type NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-06-20",
-})
+// Initialize Stripe only when needed to avoid build-time errors
+function getStripe() {
+  const secretKey = process.env.STRIPE_SECRET_KEY
+
+  if (!secretKey) {
+    throw new Error("STRIPE_SECRET_KEY environment variable is not set")
+  }
+
+  return new Stripe(secretKey, {
+    apiVersion: "2024-06-20",
+  })
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const stripe = getStripe()
     const { url } = await request.json()
 
     if (!url) {
@@ -70,6 +80,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
+    const stripe = getStripe()
+
     // List all webhooks
     const webhooks = await stripe.webhookEndpoints.list()
 
