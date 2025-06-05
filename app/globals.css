@@ -155,6 +155,23 @@
     -webkit-mask-composite: xor;
   }
 
+  /* CTA Button - High Contrast */
+  .btn-cta {
+    background: rgba(255, 255, 255, 0.95);
+    color: #1d4ed8;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .btn-cta:hover {
+    background: rgba(255, 255, 255, 1);
+    color: #1e40af;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  }
+
   /* Navigation Gradients */
   .nav-gradient {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%);
@@ -314,23 +331,7 @@
   }
 }
 
-/* Custom scrollbar with gradient */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
-}
-
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
-}
+/* Default scrollbar (removed custom styling) */
 
 /* Loading animation with gradient */
 .loading-dots {
