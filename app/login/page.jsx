@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Info, Eye, EyeOff, ShieldAlert } from "lucide-react"
+import { Loader2, Info, Eye, EyeOff, ShieldAlert, ArrowLeft } from "lucide-react"
 import FirebaseError from "@/components/firebase-error"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
@@ -155,6 +155,15 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
+      {/* Back to Home Link */}
+      <Link
+        href="/"
+        className="absolute top-4 left-4 flex items-center text-sm text-gray-600 hover:text-[#6A0DAD] transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4 mr-1" />
+        Back to Home
+      </Link>
+
       <Card className="w-full max-w-md shadow-lg rounded-2xl">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">Sign in to Evertwine</CardTitle>
