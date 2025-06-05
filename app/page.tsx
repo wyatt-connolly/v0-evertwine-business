@@ -156,7 +156,7 @@ export default function HomePage() {
           <Link href="/signup">
             <Button
               size="lg"
-              className="bg-white text-evertwine-700 hover:bg-gray-50 hover:text-evertwine-800 hover-lift font-medium px-8 py-6 shadow-lg"
+              className="bg-white text-evertwine-700 hover:bg-gray-50 hover:text-evertwine-800 hover-lift font-medium px-8 py-6 shadow-lg border-0"
             >
               Start Your Free Trial
               <ArrowRight className="ml-2 h-5 w-5" />
