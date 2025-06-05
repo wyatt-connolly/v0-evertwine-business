@@ -10,15 +10,13 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   GoogleAuthProvider,
-  FacebookAuthProvider,
   signInWithPopup,
 } from "firebase/auth"
 import { doc, getDoc, setDoc } from "firebase/firestore"
 import { getFirebaseServices } from "@/lib/firebase"
 
-// Initialize providers
+// Initialize Google provider only
 const googleProvider = new GoogleAuthProvider()
-const facebookProvider = new FacebookAuthProvider()
 
 // Define the shape of our context
 type AuthContextType = {
@@ -30,7 +28,6 @@ type AuthContextType = {
   signUp: (email: string, password: string, userData: any) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   signInWithGoogle: () => Promise<void>
-  signInWithFacebook: () => Promise<void>
   logout: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
 }
@@ -45,7 +42,6 @@ const AuthContext = createContext<AuthContextType>({
   signUp: async () => {},
   signIn: async () => {},
   signInWithGoogle: async () => {},
-  signInWithFacebook: async () => {},
   logout: async () => {},
   resetPassword: async () => {},
 })
@@ -187,40 +183,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Facebook sign in function
-  const signInWithFacebook = async () => {
-    const { auth, db } = await getFirebaseServices()
-
-    if (!auth || !db) {
-      throw new Error("Firebase services not available")
-    }
-
-    const result = await signInWithPopup(auth, facebookProvider)
-    const user = result.user
-
-    // Check if user profile exists
-    const userDoc = await getDoc(doc(db, "business_users", user.uid))
-
-    // If user doesn't exist in Firestore, create a new profile
-    if (!userDoc.exists()) {
-      await setDoc(doc(db, "business_users", user.uid), {
-        name: user.displayName || "",
-        email: user.email,
-        phone: user.phoneNumber || "",
-        photo_url: user.photoURL || "",
-        created_at: new Date().toISOString(),
-        status: "pending",
-        plan: "free",
-        promotions_used: 0,
-        promotions_limit: 2,
-        auth_provider: "facebook",
-        // Initialize subscription fields
-        subscription_active: false,
-        is_subscribed: false,
-      })
-    }
-  }
-
   // Logout function
   const logout = async () => {
     const { auth } = await getFirebaseServices()
@@ -324,7 +286,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signIn,
     signInWithGoogle,
-    signInWithFacebook,
     logout,
     resetPassword,
   }

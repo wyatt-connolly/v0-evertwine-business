@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import {
   signUp as signUpFunction,
   signInWithGoogle,
-  signInWithFacebook,
   useAuthState,
   isPreviewEnvironment,
   handleAuthRedirect,
@@ -145,27 +144,6 @@ export default function SignupPage() {
     }
   }
 
-  const handleFacebookSignIn = async () => {
-    if (isPreview) {
-      setError(
-        "Social login is not available in preview environments. Please use email/password login or access the application from an authorized domain.",
-      )
-      return
-    }
-
-    setSocialLoading("facebook")
-    setError("")
-
-    try {
-      await signInWithFacebook()
-      // The redirect will happen automatically, so we don't need to do anything here
-    } catch (error) {
-      console.error("Facebook sign-in error:", error)
-      setError(error.message || "Failed to sign in with Facebook. Please try again.")
-      setSocialLoading("")
-    }
-  }
-
   if (permissionError) {
     return <FirestorePermissionError />
   }
@@ -283,7 +261,7 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="w-full">
             <Button
               variant="outline"
               className="w-full"
@@ -312,25 +290,7 @@ export default function SignupPage() {
                   />
                 </svg>
               )}
-              Google
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={handleFacebookSignIn}
-              disabled={!!socialLoading || isPreview}
-            >
-              {socialLoading === "facebook" ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-                  <path
-                    d="M9.19795 21.5H13.198V13.4901H16.8021L17.198 9.50977H13.198V7.5C13.198 6.94772 13.6457 6.5 14.198 6.5H17.198V2.5H14.198C11.4365 2.5 9.19795 4.73858 9.19795 7.5V9.50977H7.19795L6.80206 13.4901H9.19795V21.5Z"
-                    fill="#1877F2"
-                  />
-                </svg>
-              )}
-              Facebook
+              Continue with Google
             </Button>
           </div>
         </CardContent>
