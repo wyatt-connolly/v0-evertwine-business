@@ -10,9 +10,9 @@ interface LogoProps {
 
 export function Logo({ className = "", showText = true, size = "md" }: LogoProps) {
   const sizeClasses = {
-    sm: "h-6 w-6",
-    md: "h-8 w-8",
-    lg: "h-12 w-12",
+    sm: { width: 24, height: 24 },
+    md: { width: 32, height: 32 },
+    lg: { width: 48, height: 48 },
   }
 
   const textSizeClasses = {
@@ -21,18 +21,19 @@ export function Logo({ className = "", showText = true, size = "md" }: LogoProps
     lg: "text-3xl",
   }
 
+  const logoSize = sizeClasses[size]
+
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <div className="relative">
-        <div className={`${sizeClasses[size]} relative`}>
-          <Image
-            src="/images/evertwine-logo.png"
-            alt="Evertwine Logo"
-            width={size === "lg" ? 48 : size === "md" ? 32 : 24}
-            height={size === "lg" ? 48 : size === "md" ? 32 : 24}
-            className="rounded-md"
-          />
-        </div>
+    <div className={`flex items-center gap-3 ${className}`}>
+      <div className="relative flex-shrink-0">
+        <Image
+          src="/images/evertwine-logo.png"
+          alt="Evertwine Logo"
+          width={logoSize.width}
+          height={logoSize.height}
+          className="rounded-md"
+          priority
+        />
       </div>
       {showText && (
         <span

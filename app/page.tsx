@@ -1,57 +1,26 @@
-"use client"
-
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/auth-context"
-import { Logo } from "@/components/logo"
-import { Button } from "@/components/ui/button"
-import { ArrowRight, Sparkles, TrendingUp, Users, Zap } from "lucide-react"
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Logo } from "@/components/logo"
+import { ArrowRight, BarChart3, Users, Zap } from "lucide-react"
 
 export default function HomePage() {
-  const { user, loading } = useAuth()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (!loading && user) {
-      router.push("/dashboard")
-    }
-  }, [user, loading, router])
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Logo size="lg" className="justify-center mb-6" />
-          <div className="loading-dots">
-            <div></div>
-            <div></div>
-            <div></div>
-            <div></div>
-          </div>
-          <p className="text-muted-foreground mt-4">Loading your business portal...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (user) {
-    return null // Will redirect to dashboard
-  }
-
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-evertwine-50 via-white to-evertwine-100">
       {/* Navigation */}
-      <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <nav className="border-b bg-white/80 backdrop-blur-xl sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Logo />
+            <Logo size="md" />
             <div className="flex items-center gap-4">
               <Link href="/login">
-                <Button variant="ghost">Sign In</Button>
+                <Button variant="ghost" className="text-evertwine-700 hover:text-evertwine-800">
+                  Sign In
+                </Button>
               </Link>
               <Link href="/signup">
-                <Button className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700">
+                <Button className="bg-gradient-to-r from-evertwine-600 to-evertwine-700 hover:from-evertwine-700 hover:to-evertwine-800 text-white">
                   Get Started
                 </Button>
               </Link>
@@ -61,124 +30,123 @@ export default function HomePage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 sm:py-32">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900"></div>
-        <div className="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:bg-grid-slate-700/25 dark:[mask-image:linear-gradient(0deg,rgba(255,255,255,0.1),rgba(255,255,255,0.5))]"></div>
-
-        <div className="relative container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-full px-4 py-2 mb-8">
-              <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">Grow Your Business Today</span>
-            </div>
-
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-              <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                Promote Your Business
+      <section className="relative py-20 lg:py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <Badge className="mb-6 bg-evertwine-100 text-evertwine-700 border-evertwine-200">
+              ✨ Transform Your Business Promotions
+            </Badge>
+            <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 mb-6">
+              Grow Your Business with{" "}
+              <span className="bg-gradient-to-r from-evertwine-600 to-evertwine-700 bg-clip-text text-transparent">
+                Smart Promotions
               </span>
-              <br />
-              <span className="text-foreground">Like Never Before</span>
             </h1>
-
-            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-              Create stunning promotions, reach more customers, and grow your business with our powerful platform
-              designed for modern entrepreneurs.
+            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+              Create, manage, and track powerful promotional campaigns that drive customer engagement and boost your
+              revenue.
             </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/signup">
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-8 py-6 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="bg-gradient-to-r from-evertwine-600 to-evertwine-700 hover:from-evertwine-700 hover:to-evertwine-800 text-white"
                 >
                   Start Free Trial
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Link href="/login">
+              <Link href="/promotions">
                 <Button
-                  variant="outline"
                   size="lg"
-                  className="px-8 py-6 text-lg font-semibold rounded-xl border-2 hover:bg-accent"
+                  variant="outline"
+                  className="border-evertwine-300 text-evertwine-700 hover:bg-evertwine-50"
                 >
-                  Sign In
+                  View Live Promotions
                 </Button>
               </Link>
             </div>
           </div>
         </div>
-
-        {/* Floating Elements */}
-        <div className="absolute top-20 left-10 animate-float">
-          <div className="w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full opacity-20 blur-xl"></div>
-        </div>
-        <div className="absolute bottom-20 right-10 animate-float" style={{ animationDelay: "2s" }}>
-          <div className="w-32 h-32 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full opacity-20 blur-xl"></div>
-        </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-background">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              Everything You Need to{" "}
-              <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                Succeed
-              </span>
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Powerful tools and insights to help your business grow and reach more customers.
+            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Everything you need to succeed</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Powerful tools designed to help your business create compelling promotions and track their performance.
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="group p-8 rounded-2xl border bg-card hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Zap className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Quick Setup</h3>
-              <p className="text-muted-foreground">
-                Get started in minutes with our intuitive promotion builder. No technical skills required.
-              </p>
-            </div>
+            <Card className="border-evertwine-200 hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="w-12 h-12 bg-evertwine-100 rounded-lg flex items-center justify-center mb-4">
+                  <Zap className="h-6 w-6 text-evertwine-600" />
+                </div>
+                <CardTitle className="text-evertwine-900">Quick Setup</CardTitle>
+                <CardDescription>Create professional promotions in minutes with our intuitive builder.</CardDescription>
+              </CardHeader>
+            </Card>
 
-            <div className="group p-8 rounded-2xl border bg-card hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <TrendingUp className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Analytics & Insights</h3>
-              <p className="text-muted-foreground">
-                Track performance with detailed analytics and make data-driven decisions for your business.
-              </p>
-            </div>
+            <Card className="border-evertwine-200 hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="w-12 h-12 bg-evertwine-100 rounded-lg flex items-center justify-center mb-4">
+                  <BarChart3 className="h-6 w-6 text-evertwine-600" />
+                </div>
+                <CardTitle className="text-evertwine-900">Real-time Analytics</CardTitle>
+                <CardDescription>Track performance and optimize your campaigns with detailed insights.</CardDescription>
+              </CardHeader>
+            </Card>
 
-            <div className="group p-8 rounded-2xl border bg-card hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Users className="h-6 w-6 text-white" />
+            <Card className="border-evertwine-200 hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="w-12 h-12 bg-evertwine-100 rounded-lg flex items-center justify-center mb-4">
+                  <Users className="h-6 w-6 text-evertwine-600" />
+                </div>
+                <CardTitle className="text-evertwine-900">Customer Engagement</CardTitle>
+                <CardDescription>Build lasting relationships with targeted promotional campaigns.</CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Social Proof */}
+      <section className="py-20 bg-evertwine-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">Trusted by businesses worldwide</h2>
+            <div className="grid md:grid-cols-3 gap-8 mb-12">
+              <div className="text-center">
+                <div className="text-4xl font-bold text-evertwine-600 mb-2">10,000+</div>
+                <div className="text-gray-600">Active Businesses</div>
               </div>
-              <h3 className="text-xl font-semibold mb-3">Reach More Customers</h3>
-              <p className="text-muted-foreground">
-                Connect with your target audience and grow your customer base with targeted promotions.
-              </p>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-evertwine-600 mb-2">500K+</div>
+                <div className="text-gray-600">Promotions Created</div>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-evertwine-600 mb-2">98%</div>
+                <div className="text-gray-600">Customer Satisfaction</div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-slate-800 dark:to-indigo-900">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-4">Ready to Grow Your Business?</h2>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join thousands of businesses already using Evertwine to create amazing promotions and reach more customers.
+      <section className="py-20 bg-gradient-to-r from-evertwine-600 to-evertwine-700">
+        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl lg:text-4xl font-bold text-white mb-6">Ready to transform your business?</h2>
+          <p className="text-xl text-evertwine-100 mb-8">
+            Join thousands of businesses already using Evertwine to grow their customer base.
           </p>
           <Link href="/signup">
-            <Button
-              size="lg"
-              className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-8 py-6 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              Get Started for Free
+            <Button size="lg" className="bg-white text-evertwine-700 hover:bg-gray-100">
+              Start Your Free Trial
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>
@@ -186,11 +154,13 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t bg-background py-12">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <footer className="bg-gray-900 text-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <Logo />
-            <div className="mt-4 md:mt-0 text-sm text-muted-foreground">© 2024 Evertwine. All rights reserved.</div>
+            <div className="mb-4 md:mb-0">
+              <Logo size="md" showText={true} />
+            </div>
+            <div className="text-gray-400 text-sm">© 2024 Evertwine. All rights reserved.</div>
           </div>
         </div>
       </footer>
