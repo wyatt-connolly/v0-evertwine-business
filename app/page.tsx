@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Logo } from "@/components/logo"
-import { ArrowRight, BarChart3, Users, Zap, Star, CheckCircle, Target, Info } from "lucide-react"
+import { ArrowRight, BarChart3, Users, Zap, Target, Info } from "lucide-react"
 import Image from "next/image"
 
 export default function HomePage() {
@@ -121,26 +121,33 @@ export default function HomePage() {
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center animate-fade-in">
               <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg border-2 border-evertwine-200">
-                <Star className="h-8 w-8 text-evertwine-600" />
+                <Target className="h-8 w-8 text-evertwine-600" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Innovation First</h3>
-              <p className="text-gray-600">Cutting-edge features designed for modern businesses</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Hyperlocal Visibility</h3>
+              <p className="text-gray-600">
+                Promote directly to nearby users actively looking for local experiences — no noise, just local reach
+                that matters.
+              </p>
             </div>
 
             <div className="text-center animate-fade-in" style={{ animationDelay: "0.1s" }}>
               <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg border-2 border-evertwine-200">
-                <CheckCircle className="h-8 w-8 text-evertwine-600" />
+                <BarChart3 className="h-8 w-8 text-evertwine-600" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Easy to Use</h3>
-              <p className="text-gray-600">Intuitive interface that anyone can master quickly</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Performance-Backed Promotions</h3>
+              <p className="text-gray-600">
+                Track every promo view, click, and redemption in real-time — full transparency, zero guesswork.
+              </p>
             </div>
 
             <div className="text-center animate-fade-in" style={{ animationDelay: "0.2s" }}>
               <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg border-2 border-evertwine-200">
-                <Target className="h-8 w-8 text-evertwine-600" />
+                <Users className="h-8 w-8 text-evertwine-600" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Results Driven</h3>
-              <p className="text-gray-600">Built to help you achieve measurable business growth</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Drive Real-World Engagement</h3>
+              <p className="text-gray-600">
+                Stand out in a dedicated promotions tab that turns online discovery into in-person visits.
+              </p>
             </div>
           </div>
         </div>
