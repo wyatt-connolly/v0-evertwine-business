@@ -98,13 +98,13 @@ export default function Dashboard() {
 
           <div className="flex flex-col sm:flex-row gap-4 mt-6">
             <Link href="/dashboard/promotions/new">
-              <Button size="lg" className="bg-white text-purple-700 hover:bg-gray-50 font-semibold shadow-lg border-0">
+              <Button size="lg" className="bg-white text-white hover:bg-gray-50 font-semibold shadow-lg border-0">
                 <PlusCircle className="mr-2 h-5 w-5" />
                 Create New Promotion
               </Button>
             </Link>
             <Link href="/dashboard/analytics">
-              <Button size="lg" className="bg-white text-purple-700 hover:bg-gray-50 font-semibold shadow-lg border-0">
+              <Button size="lg" className="bg-white text-white hover:bg-gray-50 font-semibold shadow-lg border-0">
                 <TrendingUp className="mr-2 h-5 w-5" />
                 View Analytics
               </Button>
@@ -279,8 +279,7 @@ export default function Dashboard() {
             <div className="grid gap-3">
               <Link href="/dashboard/promotions/new">
                 <Button
-                  variant="outline"
-                  className="w-full justify-start h-auto p-4 border-purple-200 hover:bg-purple-50 hover:border-purple-300 dark:border-purple-700 dark:hover:bg-purple-950/30 dark:hover:border-purple-600 transition-all duration-200"
+                  className="w-full justify-start h-auto p-4 bg-white border border-purple-200 hover:bg-purple-50 hover:border-purple-300 dark:bg-gray-800 dark:border-purple-700 dark:hover:bg-purple-950/30 dark:hover:border-purple-600 transition-all duration-200"
                   data-walkthrough="create-promotion"
                 >
                   <div className="flex items-center gap-3">
@@ -297,10 +296,7 @@ export default function Dashboard() {
               </Link>
 
               <Link href="/dashboard/analytics">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start h-auto p-4 border-green-200 hover:bg-green-50 hover:border-green-300 dark:border-green-700 dark:hover:bg-green-950/30 dark:hover:border-green-600 transition-all duration-200"
-                >
+                <Button className="w-full justify-start h-auto p-4 bg-white border border-green-200 hover:bg-green-50 hover:border-green-300 dark:bg-gray-800 dark:border-green-700 dark:hover:bg-green-950/30 dark:hover:border-green-600 transition-all duration-200">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-lg">
                       <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
@@ -315,10 +311,7 @@ export default function Dashboard() {
               </Link>
 
               <Link href="/dashboard/settings">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start h-auto p-4 border-orange-200 hover:bg-orange-50 hover:border-orange-300 dark:border-orange-700 dark:hover:bg-orange-950/30 dark:hover:border-orange-600 transition-all duration-200"
-                >
+                <Button className="w-full justify-start h-auto p-4 bg-white border border-orange-200 hover:bg-orange-50 hover:border-orange-300 dark:bg-gray-800 dark:border-orange-700 dark:hover:bg-orange-950/30 dark:hover:border-orange-600 transition-all duration-200">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-orange-100 dark:bg-orange-900/50 rounded-lg">
                       <Settings className="h-4 w-4 text-orange-600 dark:text-orange-400" />
