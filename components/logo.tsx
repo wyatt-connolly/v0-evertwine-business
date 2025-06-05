@@ -1,10 +1,41 @@
-const Logo = () => {
+"use client"
+
+import { Sparkles } from "lucide-react"
+
+interface LogoProps {
+  className?: string
+  showText?: boolean
+  size?: "sm" | "md" | "lg"
+}
+
+export function Logo({ className = "", showText = true, size = "md" }: LogoProps) {
+  const sizeClasses = {
+    sm: "h-6 w-6",
+    md: "h-8 w-8",
+    lg: "h-12 w-12",
+  }
+
+  const textSizeClasses = {
+    sm: "text-lg",
+    md: "text-xl",
+    lg: "text-3xl",
+  }
+
   return (
-    <div className="flex items-center space-x-2">
-      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-evertwine-600 to-evertwine-700"></div>
-      <span className="font-bold text-xl text-evertwine-600">Evertwine</span>
+    <div className={`flex items-center gap-2 ${className}`}>
+      <div className="relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-evertwine-500 to-evertwine-600 rounded-lg blur-sm opacity-75"></div>
+        <div className="relative bg-gradient-to-br from-evertwine-500 to-evertwine-600 rounded-lg p-1.5 shadow-lg">
+          <Sparkles className={`${sizeClasses[size]} text-white`} />
+        </div>
+      </div>
+      {showText && (
+        <span
+          className={`font-bold bg-gradient-to-r from-evertwine-600 to-evertwine-700 bg-clip-text text-transparent ${textSizeClasses[size]}`}
+        >
+          Evertwine
+        </span>
+      )}
     </div>
   )
 }
-
-export default Logo
