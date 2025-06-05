@@ -153,11 +153,12 @@ export default function HomePage() {
           <p className="text-xl text-blue-100 mb-8">
             Start creating powerful promotions today and watch your customer base grow.
           </p>
-          <Link href="/signup">
-            <a className="inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-md shadow-lg bg-white text-evertwine-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-evertwine-500 transition-all duration-200 hover:-translate-y-1">
-              Start Your Free Trial
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </a>
+          <Link
+            href="/signup"
+            className="inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-md shadow-lg bg-white text-evertwine-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-evertwine-500 transition-all duration-200 hover:-translate-y-1"
+          >
+            Start Your Free Trial
+            <ArrowRight className="ml-2 h-5 w-5" />
           </Link>
         </div>
       </section>
