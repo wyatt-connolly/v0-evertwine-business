@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Logo } from "@/components/logo"
-import { ArrowRight, BarChart3, Users, Zap, Star, CheckCircle, Target } from "lucide-react"
+import { ArrowRight, BarChart3, Users, Zap, Star, CheckCircle, Target, Info } from "lucide-react"
+import Image from "next/image"
 
 export default function HomePage() {
   return (
@@ -31,7 +32,7 @@ export default function HomePage() {
       <section className="relative py-20 lg:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center animate-slide-up">
-            <Badge className="mb-6 bg-evertwine-100 text-evertwine-700 border-evertwine-200 animate-pulse-slow">
+            <Badge className="mb-6 bg-evertwine-100 text-evertwine-700 border-evertwine-200">
               ✨ Transform Your Business Promotions
             </Badge>
             <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 mb-6">
@@ -48,13 +49,14 @@ export default function HomePage() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Link href="/promotions">
+              <Link href="/signup">
                 <Button
                   size="lg"
                   variant="outline"
                   className="border-evertwine-300 text-evertwine-700 hover:bg-evertwine-50 hover-lift"
                 >
-                  View Live Promotions
+                  Learn More
+                  <Info className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
             </div>
@@ -152,7 +154,10 @@ export default function HomePage() {
             Start creating powerful promotions today and watch your customer base grow.
           </p>
           <Link href="/signup">
-            <Button size="lg" className="btn-cta hover-lift">
+            <Button
+              size="lg"
+              className="bg-white text-evertwine-700 hover:bg-gray-100 hover:text-evertwine-800 hover-lift font-medium px-8 py-6"
+            >
               Start Your Free Trial
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -166,7 +171,9 @@ export default function HomePage() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="mb-4 md:mb-0">
               <div className="flex items-center gap-3">
-                <img src="/images/evertwine-logo.png" alt="Evertwine" className="h-8 w-8" />
+                <div className="rounded-full overflow-hidden w-8 h-8">
+                  <Image src="/images/evertwine-logo.png" alt="Evertwine" width={32} height={32} />
+                </div>
                 <span className="text-xl font-bold text-white">Evertwine</span>
               </div>
             </div>
