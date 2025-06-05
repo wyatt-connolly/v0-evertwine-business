@@ -118,24 +118,24 @@ export default function HomePage() {
 
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center animate-fade-in">
-              <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                <Star className="h-8 w-8 text-white" />
+              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg border-2 border-evertwine-200">
+                <Star className="h-8 w-8 text-evertwine-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Innovation First</h3>
               <p className="text-gray-600">Cutting-edge features designed for modern businesses</p>
             </div>
 
             <div className="text-center animate-fade-in" style={{ animationDelay: "0.1s" }}>
-              <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="h-8 w-8 text-white" />
+              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg border-2 border-evertwine-200">
+                <CheckCircle className="h-8 w-8 text-evertwine-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Easy to Use</h3>
               <p className="text-gray-600">Intuitive interface that anyone can master quickly</p>
             </div>
 
             <div className="text-center animate-fade-in" style={{ animationDelay: "0.2s" }}>
-              <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                <Target className="h-8 w-8 text-white" />
+              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg border-2 border-evertwine-200">
+                <Target className="h-8 w-8 text-evertwine-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Results Driven</h3>
               <p className="text-gray-600">Built to help you achieve measurable business growth</p>
