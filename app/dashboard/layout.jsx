@@ -147,7 +147,7 @@ export default function DashboardLayout({ children }) {
                       href={item.href}
                       className={`group flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
                         pathname === item.href
-                          ? "evertwine-gradient text-white shadow-lg"
+                          ? "bg-gradient-to-r from-evertwine-600 to-evertwine-700 text-white shadow-lg"
                           : "text-muted-foreground hover:text-foreground hover:bg-accent"
                       }`}
                       onClick={() => setSidebarOpen(false)}
@@ -171,7 +171,7 @@ export default function DashboardLayout({ children }) {
                 <div className="px-3 mt-6">
                   <Button
                     onClick={() => router.push("/dashboard/promotions/new")}
-                    className="w-full evertwine-gradient hover:bg-evertwine-700 text-white shadow-lg"
+                    className="w-full bg-gradient-to-r from-evertwine-600 to-evertwine-700 hover:from-evertwine-700 hover:to-evertwine-800 text-white shadow-lg"
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     New Promotion
@@ -198,7 +198,7 @@ export default function DashboardLayout({ children }) {
                     href={item.href}
                     className={`group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
                       pathname === item.href
-                        ? "evertwine-gradient text-white shadow-lg transform scale-[1.02]"
+                        ? "bg-gradient-to-r from-evertwine-600 to-evertwine-700 text-white shadow-lg transform scale-[1.02]"
                         : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                     }`}
                   >
@@ -221,7 +221,7 @@ export default function DashboardLayout({ children }) {
               <div className="px-4 mt-6">
                 <Button
                   onClick={() => router.push("/dashboard/promotions/new")}
-                  className="w-full evertwine-gradient hover:bg-evertwine-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="w-full bg-gradient-to-r from-evertwine-600 to-evertwine-700 hover:from-evertwine-700 hover:to-evertwine-800 text-white shadow-lg hover:shadow-xl transition-all duration-300"
                   data-walkthrough="create-promotion"
                 >
                   <Plus className="mr-2 h-4 w-4" />

@@ -20,14 +20,14 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // Evertwine brand colors
+        // Evertwine brand colors - based on the blue from the logo
         evertwine: {
-          50: "#eff6ff",
-          100: "#dbeafe",
-          200: "#bfdbfe",
-          300: "#93c5fd",
-          400: "#60a5fa",
-          500: "#3b82f6",
+          50: "#eef5ff",
+          100: "#d9e7ff",
+          200: "#bcd4ff",
+          300: "#8eb8ff",
+          400: "#5b91ff",
+          500: "#3b6bff",
           600: "#2563eb", // Main brand blue from logo
           700: "#1d4ed8",
           800: "#1e40af",

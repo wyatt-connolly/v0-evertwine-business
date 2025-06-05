@@ -1,6 +1,6 @@
 "use client"
 
-import { Sparkles } from "lucide-react"
+import Image from "next/image"
 
 interface LogoProps {
   className?: string
@@ -24,9 +24,14 @@ export function Logo({ className = "", showText = true, size = "md" }: LogoProps
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-evertwine-500 to-evertwine-600 rounded-lg blur-sm opacity-75"></div>
-        <div className="relative bg-gradient-to-br from-evertwine-500 to-evertwine-600 rounded-lg p-1.5 shadow-lg">
-          <Sparkles className={`${sizeClasses[size]} text-white`} />
+        <div className={`${sizeClasses[size]} relative`}>
+          <Image
+            src="/images/evertwine-logo.png"
+            alt="Evertwine Logo"
+            width={size === "lg" ? 48 : size === "md" ? 32 : 24}
+            height={size === "lg" ? 48 : size === "md" ? 32 : 24}
+            className="rounded-md"
+          />
         </div>
       </div>
       {showText && (
