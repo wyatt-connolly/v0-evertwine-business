@@ -107,7 +107,7 @@ export default function Dashboard() {
                 <Link href="/dashboard/promotions/new">
                   <Button
                     size="lg"
-                    className="bg-white text-slate-900 hover:bg-gray-50 font-semibold shadow-xl border-0 rounded-xl px-8 py-4 text-base transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                    className="bg-purple-600 text-white hover:bg-purple-700 font-semibold shadow-xl border-0 rounded-xl px-8 py-4 text-base transition-all duration-300 hover:scale-105 hover:shadow-2xl"
                   >
                     <PlusCircle className="mr-3 h-5 w-5" />
                     Create New Promotion
@@ -116,7 +116,7 @@ export default function Dashboard() {
                 <Link href="/dashboard/analytics">
                   <Button
                     size="lg"
-                    className="bg-purple-600 text-white hover:bg-purple-700 font-semibold shadow-xl border-0 rounded-xl px-8 py-4 text-base transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                    className="bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 font-semibold shadow-xl border border-white/30 rounded-xl px-8 py-4 text-base transition-all duration-300 hover:scale-105 hover:shadow-2xl"
                   >
                     <BarChart3 className="mr-3 h-5 w-5" />
                     View Analytics
