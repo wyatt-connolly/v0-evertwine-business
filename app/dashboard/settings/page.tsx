@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Upload, X } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
-import { doc, updateDoc, setDoc, getDoc } from "firebase/firestore"
+import { doc, updateDoc, setDoc, getDoc, collection, query, where, getDocs, writeBatch } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { db, auth, storage } from "@/lib/firebase"
 import { sendPasswordResetEmail } from "firebase/auth"
@@ -27,6 +27,7 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [businessName, setBusinessName] = useState("")
+  const [originalBusinessName, setOriginalBusinessName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
@@ -44,7 +45,9 @@ export default function SettingsPage() {
   useEffect(() => {
     if (userProfile) {
       // Handle both camelCase and snake_case field names
-      setBusinessName(userProfile.business_name || userProfile.businessName || "")
+      const businessNameValue = userProfile.business_name || userProfile.businessName || ""
+      setBusinessName(businessNameValue)
+      setOriginalBusinessName(businessNameValue) // Store original value for comparison
       setEmail(user?.email || "")
       setPhone(userProfile.phone || "")
       setAddress(userProfile.address || "")
@@ -71,6 +74,53 @@ export default function SettingsPage() {
         }
       }
       reader.readAsDataURL(file)
+    }
+  }
+
+  const updatePromotionsBusinessName = async (newBusinessName: string) => {
+    if (!user) return
+
+    try {
+      console.log("Updating business name in promotions to:", newBusinessName)
+
+      // Get all promotions for this business
+      const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
+      const promotionsSnapshot = await getDocs(promotionsQuery)
+
+      if (promotionsSnapshot.empty) {
+        console.log("No promotions found to update")
+        return
+      }
+
+      // Use batch write for better performance and atomicity
+      const batch = writeBatch(db)
+      let updateCount = 0
+
+      promotionsSnapshot.docs.forEach((promotionDoc) => {
+        const promotionRef = doc(db, "promotions", promotionDoc.id)
+        batch.update(promotionRef, {
+          business_name: newBusinessName,
+          updated_at: new Date().toISOString(),
+        })
+        updateCount++
+      })
+
+      // Commit the batch
+      await batch.commit()
+
+      console.log(`Successfully updated business name in ${updateCount} promotions`)
+
+      toast({
+        title: "Promotions updated",
+        description: `Business name updated in ${updateCount} promotion${updateCount !== 1 ? "s" : ""}.`,
+      })
+    } catch (error) {
+      console.error("Error updating promotions business name:", error)
+      toast({
+        variant: "destructive",
+        title: "Warning",
+        description: "Profile updated but failed to update some promotions. They may show the old business name.",
+      })
     }
   }
 
@@ -141,6 +191,13 @@ export default function SettingsPage() {
           title: "Profile created",
           description: "Your business profile has been created successfully.",
         })
+      }
+
+      // Check if business name changed and update promotions if needed
+      if (businessName !== originalBusinessName && businessName.trim() !== "") {
+        console.log("Business name changed from:", originalBusinessName, "to:", businessName)
+        await updatePromotionsBusinessName(businessName)
+        setOriginalBusinessName(businessName) // Update the original value
       }
     } catch (error: any) {
       console.error("Error updating profile:", error)
@@ -263,17 +320,6 @@ export default function SettingsPage() {
               <CardDescription>Update your business information and how it appears to customers</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* {showImageWarning && (
-                <Alert variant="warning" className="mb-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Image Upload Limitation</AlertTitle>
-                  <AlertDescription>
-                    Due to current system limitations, profile images cannot be updated at this time. Your other profile
-                    information will still be saved.
-                  </AlertDescription>
-                </Alert>
-              )} */}
-
               <div className="space-y-2">
                 <Label htmlFor="photo">Business Photo</Label>
                 <div className="flex items-center gap-4">
@@ -329,6 +375,11 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label htmlFor="businessName">Business Name</Label>
                 <Input id="businessName" value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
+                {businessName !== originalBusinessName && businessName.trim() !== "" && (
+                  <p className="text-xs text-blue-600">
+                    Changing your business name will update it in all your existing promotions.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
