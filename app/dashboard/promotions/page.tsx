@@ -20,6 +20,8 @@ import {
   Eye,
   MousePointerClick,
   CreditCard,
+  Calendar,
+  MapPin,
 } from "lucide-react"
 import {
   AlertDialog,
@@ -36,6 +38,8 @@ import { useToast } from "@/components/ui/use-toast"
 import { collection, query, where, getDocs, doc, deleteDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { format } from "date-fns"
 
 // Category icon mapping
 const categoryIcons: Record<string, any> = {
@@ -43,6 +47,7 @@ const categoryIcons: Record<string, any> = {
   Spa: Spa,
   Retail: ShoppingBag,
   Entertainment: Music,
+  Health: Coffee,
   Other: Coffee,
 }
 
@@ -51,7 +56,9 @@ const categoryPlaceholders: Record<string, string> = {
   Restaurant: "/placeholder.svg?height=200&width=300&text=Restaurant",
   Spa: "/placeholder.svg?height=200&width=300&text=Spa",
   Retail: "/placeholder.svg?height=200&width=300&text=Retail",
-  Entertainment: "/placeholder.svg?height=200&width=300&text=Business",
+  Entertainment: "/placeholder.svg?height=200&width=300&text=Entertainment",
+  Health: "/placeholder.svg?height=200&width=300&text=Health",
+  Other: "/placeholder.svg?height=200&width=300&text=Business",
 }
 
 const MAX_PROMOTIONS = 2
@@ -73,11 +80,9 @@ export default function PromotionsPage() {
 
     setLoading(true)
     try {
-      // Query using business_id field which is used when creating promotions
       const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
       const promotionsSnapshot = await getDocs(promotionsQuery)
 
-      // Filter to only include live promotions
       const promotionsData = promotionsSnapshot.docs
         .map((doc) => ({
           id: doc.id,
@@ -113,8 +118,8 @@ export default function PromotionsPage() {
       await deleteDoc(doc(db, "promotions", id))
       setPromotions(promotions.filter((promo) => promo.id !== id))
       toast({
-        title: "Promotion deleted",
-        description: "The promotion has been successfully deleted.",
+        title: "Success",
+        description: "Promotion deleted successfully.",
       })
     } catch (error) {
       console.error("Error deleting promotion:", error)
@@ -138,37 +143,30 @@ export default function PromotionsPage() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="text-red-500 mb-4">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="64"
-            height="64"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+            <AlertCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h3 className="text-xl font-semibold mb-2">Error Loading Promotions</h3>
+          <p className="text-muted-foreground mb-6 max-w-md">{error}</p>
+          <Button onClick={fetchPromotions} variant="outline">
+            Try Again
+          </Button>
         </div>
-        <h3 className="text-xl font-medium mb-2">Error Loading Promotions</h3>
-        <p className="text-gray-500 mb-4">{error}</p>
-        <Button onClick={fetchPromotions} className="bg-[#6A0DAD] hover:bg-[#5a0b93]">
-          Try Again
-        </Button>
       </div>
     )
   }
 
   if (authLoading || loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#6A0DAD]" />
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading promotions...</p>
+          </div>
+        </div>
       </div>
     )
   }
@@ -176,16 +174,16 @@ export default function PromotionsPage() {
   const reachedLimit = promotions.length >= MAX_PROMOTIONS
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto px-4 py-8 space-y-8">
+      {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Manage Promotions</h1>
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Promotions</h1>
           <p className="text-muted-foreground">Create and manage your business promotions</p>
         </div>
         <Button
           onClick={handleCreatePromotion}
-          className="bg-[#6A0DAD] hover:bg-[#5a0b93] w-full sm:w-auto"
-          data-walkthrough="create-promotion"
+          className="w-full sm:w-auto"
           disabled={reachedLimit && hasActiveSubscription}
         >
           {!hasActiveSubscription ? (
@@ -196,21 +194,22 @@ export default function PromotionsPage() {
           ) : (
             <>
               <Plus className="mr-2 h-4 w-4" />
-              Create New Promotion
+              Create Promotion
             </>
           )}
         </Button>
       </div>
 
+      {/* Subscription Alert */}
       {!hasActiveSubscription && (
-        <Alert className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
-          <CreditCard className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-          <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
+          <CreditCard className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <AlertDescription className="text-amber-800 dark:text-amber-200">
             <strong>Subscription Required:</strong> You need an active subscription ($35/month) to create and manage
             promotions.{" "}
             <Button
               variant="link"
-              className="p-0 h-auto text-yellow-800 dark:text-yellow-200 underline"
+              className="p-0 h-auto text-amber-800 dark:text-amber-200 underline font-medium"
               onClick={() => router.push("/dashboard/billing")}
             >
               Subscribe now
@@ -219,34 +218,46 @@ export default function PromotionsPage() {
         </Alert>
       )}
 
-      <div className="bg-blue-50 dark:bg-blue-950/50 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-          <div className="flex items-center">
-            <span className="font-medium text-blue-900 dark:text-blue-100">Promotions:</span>
-            <span className="ml-2 text-blue-800 dark:text-blue-200">
-              {promotions.length} of {MAX_PROMOTIONS} used
-            </span>
+      {/* Usage Stats */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="space-y-1">
+              <h3 className="font-semibold">Promotion Usage</h3>
+              <p className="text-sm text-muted-foreground">
+                {promotions.length} of {MAX_PROMOTIONS} promotions used
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-32 bg-secondary rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${(promotions.length / MAX_PROMOTIONS) * 100}%` }}
+                />
+              </div>
+              <span className="text-sm font-medium">{Math.round((promotions.length / MAX_PROMOTIONS) * 100)}%</span>
+            </div>
           </div>
           {reachedLimit && hasActiveSubscription && (
-            <div className="w-full sm:w-auto">
-              <Alert variant="warning" className="p-2 border-yellow-200 bg-yellow-50">
-                <AlertCircle className="h-4 w-4 text-yellow-600" />
-                <AlertDescription className="text-yellow-600 text-sm">
-                  You've reached your limit of {MAX_PROMOTIONS} promotions
-                </AlertDescription>
-              </Alert>
-            </div>
+            <Alert className="mt-4 border-amber-200 bg-amber-50">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                You've reached your limit of {MAX_PROMOTIONS} promotions. Delete an existing promotion to create a new
+                one.
+              </AlertDescription>
+            </Alert>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
+      {/* Promotions Grid */}
       {promotions.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {promotions.map((promotion) => {
             const CategoryIcon = categoryIcons[promotion.category] || Tag
             const placeholderImage = categoryPlaceholders[promotion.category] || categoryPlaceholders.Other
             return (
-              <Card key={promotion.id} className="overflow-hidden">
+              <Card key={promotion.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-200">
                 <div className="aspect-video w-full relative">
                   {promotion.image_url ? (
                     <img
@@ -261,38 +272,55 @@ export default function PromotionsPage() {
                       className="w-full h-full object-cover"
                     />
                   )}
-                  <div className="absolute top-2 right-2">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        promotion.status === "live" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {promotion.status === "live" ? "Live" : "Expired"}
-                    </span>
+                  <div className="absolute top-3 left-3">
+                    <Badge variant="secondary" className="bg-white/90 text-foreground">
+                      <CategoryIcon className="w-3 h-3 mr-1" />
+                      {promotion.category}
+                    </Badge>
+                  </div>
+                  <div className="absolute top-3 right-3">
+                    <Badge className="bg-green-500 hover:bg-green-600">Live</Badge>
                   </div>
                 </div>
-                <CardHeader className="p-4 pb-0">
-                  <div className="flex items-center gap-2">
-                    <CategoryIcon className="h-4 w-4 text-muted-foreground" />
-                    <CardDescription>{promotion.category}</CardDescription>
-                  </div>
-                  <CardTitle className="text-lg">{promotion.title}</CardTitle>
+
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg line-clamp-1">{promotion.title}</CardTitle>
+                  <CardDescription className="line-clamp-2">{promotion.description}</CardDescription>
                 </CardHeader>
-                <CardContent className="p-4">
-                  <p className="text-sm text-gray-500 line-clamp-2 mb-4">{promotion.description}</p>
-                  <div className="flex justify-between items-center">
-                    <div className="text-sm text-gray-500 flex items-center gap-3">
-                      <span className="flex items-center gap-1">
-                        <Eye className="h-4 w-4" /> {promotion.views || 0}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MousePointerClick className="h-4 w-4" /> {promotion.clicks || 0}
-                      </span>
+
+                <CardContent className="pt-0 space-y-4">
+                  {/* Location and Date Info */}
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    {promotion.address && (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{promotion.address}</span>
+                      </div>
+                    )}
+                    {promotion.expiration_date && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 flex-shrink-0" />
+                        <span>Expires {format(new Date(promotion.expiration_date), "MMM d, yyyy")}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Stats */}
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Eye className="h-4 w-4" />
+                        <span>{promotion.views || 0}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MousePointerClick className="h-4 w-4" />
+                        <span>{promotion.clicks || 0}</span>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1">
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         onClick={() => router.push(`/dashboard/promotions/edit/${promotion.id}`)}
                         disabled={!hasActiveSubscription}
                       >
@@ -302,8 +330,8 @@ export default function PromotionsPage() {
                         <AlertDialogTrigger asChild>
                           <Button
                             variant="ghost"
-                            size="icon"
-                            className="text-red-500"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
                             disabled={!hasActiveSubscription}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -311,16 +339,16 @@ export default function PromotionsPage() {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogTitle>Delete Promotion</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This action cannot be undone. This will permanently delete the promotion.
+                              Are you sure you want to delete "{promotion.title}"? This action cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => handleDelete(promotion.id)}
-                              className="bg-red-500 hover:bg-red-600"
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
                               {deletingId === promotion.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
                             </AlertDialogAction>
@@ -335,20 +363,18 @@ export default function PromotionsPage() {
           })}
         </div>
       ) : (
-        <Card className="bg-white shadow-sm">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Tag className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium mb-2">No promotions yet</h3>
-            <p className="text-gray-500 text-center max-w-md mb-6">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+              <Tag className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">No promotions yet</h3>
+            <p className="text-muted-foreground max-w-md mb-6">
               {hasActiveSubscription
                 ? "Create your first promotion to attract more customers to your business."
                 : "Subscribe to start creating promotions and attract more customers to your business."}
             </p>
-            <Button
-              onClick={handleCreatePromotion}
-              className="bg-[#6A0DAD] hover:bg-[#5a0b93]"
-              data-walkthrough="create-promotion"
-            >
+            <Button onClick={handleCreatePromotion}>
               {!hasActiveSubscription ? (
                 <>
                   <CreditCard className="mr-2 h-4 w-4" />
@@ -357,7 +383,7 @@ export default function PromotionsPage() {
               ) : (
                 <>
                   <Plus className="mr-2 h-4 w-4" />
-                  Create New Promotion
+                  Create Your First Promotion
                 </>
               )}
             </Button>

@@ -9,15 +9,15 @@ declare global {
 }
 
 import { useState, useRef, useEffect } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Calendar, Tag, MapPin, AlertCircle, ImagePlus } from "lucide-react"
+import { Loader2, Calendar, Tag, MapPin, AlertCircle, ImagePlus, ArrowLeft } from "lucide-react"
 import { doc, updateDoc, getDoc, addDoc, collection, query, where, getDocs, GeoPoint } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { db, storage } from "@/lib/firebase"
@@ -27,6 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ImageCarousel } from "@/components/image-carousel"
 import { AddressAutocomplete } from "@/components/address-autocomplete"
+import { Badge } from "@/components/ui/badge"
 
 const PROMOTION_CATEGORIES = ["Restaurant", "Health", "Entertainment", "Retail", "Spa", "Other"]
 const MAX_PROMOTIONS = 2
@@ -49,7 +50,6 @@ export default function NewPromotionPage() {
   const [reachedLimit, setReachedLimit] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
-  const pathname = usePathname()
   const { toast } = useToast()
 
   useEffect(() => {
@@ -82,7 +82,6 @@ export default function NewPromotionPage() {
         return
       }
 
-      // Continue with existing fetchUserData logic...
       fetchUserData()
     }
 
@@ -93,7 +92,6 @@ export default function NewPromotionPage() {
       }
 
       try {
-        // Get user data from business_users collection
         const docRef = doc(db, "business_users", user.uid)
         const docSnap = await getDoc(docRef)
 
@@ -103,16 +101,12 @@ export default function NewPromotionPage() {
         }
       } catch (error) {
         console.error("Error fetching user data:", error)
-        // Don't show an error toast, just log it
       }
 
-      // Check existing promotions count
       try {
-        // Make sure we're querying with the correct field name
         const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
         const promotionsSnapshot = await getDocs(promotionsQuery)
 
-        // Filter to only include live promotions
         const promotionsData = promotionsSnapshot.docs
           .map((doc) => ({
             id: doc.id,
@@ -121,8 +115,6 @@ export default function NewPromotionPage() {
           .filter((promo) => promo.status === "live")
 
         setExistingPromotions(promotionsData)
-
-        // Only set reached limit if we actually have MAX_PROMOTIONS or more
         const hasReachedLimit = promotionsData.length >= MAX_PROMOTIONS
         setReachedLimit(hasReachedLimit)
       } catch (error) {
@@ -139,7 +131,6 @@ export default function NewPromotionPage() {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files)
 
-      // Check if adding these files would exceed the limit
       if (imageFiles.length + newFiles.length > MAX_IMAGES) {
         toast({
           variant: "destructive",
@@ -149,24 +140,20 @@ export default function NewPromotionPage() {
         return
       }
 
-      // Add new files to the existing ones
       const updatedFiles = [...imageFiles, ...newFiles]
       setImageFiles(updatedFiles)
 
-      // Generate preview URLs for all files
       const newPreviewUrls = newFiles.map((file) => URL.createObjectURL(file))
       setImagePreviewUrls((prev) => [...prev, ...newPreviewUrls])
     }
   }
 
   const removeImage = (index: number) => {
-    // Remove the file and its preview URL
     const newFiles = [...imageFiles]
     newFiles.splice(index, 1)
     setImageFiles(newFiles)
 
     const newPreviewUrls = [...imagePreviewUrls]
-    // Revoke the object URL to avoid memory leaks
     URL.revokeObjectURL(newPreviewUrls[index])
     newPreviewUrls.splice(index, 1)
     setImagePreviewUrls(newPreviewUrls)
@@ -174,18 +161,14 @@ export default function NewPromotionPage() {
 
   const handleAddressChange = async (newAddress: string, place?: any) => {
     setAddress(newAddress)
-
-    // Reset previous location data
     setPlaceData(null)
     setGeoPoint(null)
 
     if (place && place.lat && place.lng) {
       try {
-        // Create GeoPoint for Firestore
         const newGeoPoint = new GeoPoint(place.lat, place.lng)
         setGeoPoint(newGeoPoint)
 
-        // Store enhanced place data
         setPlaceData({
           place_id: place.place_id,
           formatted_address: place.formatted_address || newAddress,
@@ -213,7 +196,6 @@ export default function NewPromotionPage() {
       return
     }
 
-    // Double-check the limit before submitting
     if (existingPromotions.length >= MAX_PROMOTIONS) {
       toast({
         variant: "destructive",
@@ -237,10 +219,8 @@ export default function NewPromotionPage() {
     try {
       let imageURLs: string[] = []
 
-      // Upload all images if there are any
       if (imageFiles.length > 0) {
         try {
-          // Upload each image and collect the URLs
           const uploadPromises = imageFiles.map(async (file) => {
             const storageRef = ref(
               storage,
@@ -258,11 +238,9 @@ export default function NewPromotionPage() {
             title: "Image upload failed",
             description: "Your promotion will be created without images. You can edit it later to add images.",
           })
-          // Continue without the images
         }
       }
 
-      // Create the promotion data object
       const promotionData: any = {
         business_id: user.uid,
         title,
@@ -271,16 +249,15 @@ export default function NewPromotionPage() {
         address,
         ...(expirationDate && { expiration_date: expirationDate.toISOString() }),
         ...(imageURLs.length > 0 && {
-          image_url: imageURLs[0], // For backward compatibility
+          image_url: imageURLs[0],
           image_urls: imageURLs,
         }),
-        status: "live", // Set to live immediately - no review needed
+        status: "live",
         created_at: new Date().toISOString(),
         views: 0,
         clicks: 0,
       }
 
-      // Add enhanced location data if available
       if (geoPoint && placeData) {
         promotionData.location = geoPoint
         if (placeData.place_id) promotionData.place_id = placeData.place_id
@@ -292,10 +269,8 @@ export default function NewPromotionPage() {
         promotionData.address = address
       }
 
-      // Add promotion to Firestore
       const docRef = await addDoc(collection(db, "promotions"), promotionData)
 
-      // Try to update the user's promotion count
       try {
         const businessRef = doc(db, "business_users", user.uid)
         const businessDoc = await getDoc(businessRef)
@@ -308,11 +283,10 @@ export default function NewPromotionPage() {
         }
       } catch (error) {
         console.error("Could not update promotion count:", error)
-        // Continue anyway, the promotion was created
       }
 
       toast({
-        title: "Promotion created",
+        title: "Success",
         description: "Your promotion is now live!",
       })
 
@@ -331,21 +305,34 @@ export default function NewPromotionPage() {
 
   if (isLoadingData) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#6A0DAD]" />
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Create New Promotion</h1>
-        <p className="text-muted-foreground">Fill in the details to create a new promotion for your business</p>
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
+      {/* Header */}
+      <div className="mb-8">
+        <Button variant="ghost" className="mb-4 -ml-2" onClick={() => router.push("/dashboard/promotions")}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Promotions
+        </Button>
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Create New Promotion</h1>
+          <p className="text-muted-foreground">Fill in the details to create a new promotion for your business</p>
+        </div>
       </div>
 
+      {/* Limit Alert */}
       {reachedLimit && (
-        <Alert variant="destructive" className="mb-6">
+        <Alert variant="destructive" className="mb-8">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             You have reached the maximum limit of {MAX_PROMOTIONS} active promotions. Please delete an existing
@@ -354,14 +341,20 @@ export default function NewPromotionPage() {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Form Section */}
+        <div className="lg:col-span-2">
           <Card>
-            <CardContent className="p-6">
+            <CardHeader>
+              <CardTitle>Promotion Details</CardTitle>
+              <CardDescription>Enter the information for your new promotion</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Title */}
                 <div className="space-y-2">
                   <Label htmlFor="title">
-                    Title <span className="text-red-500">*</span>
+                    Title <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="title"
@@ -373,9 +366,10 @@ export default function NewPromotionPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
+                {/* Category */}
+                <div className="space-y-3">
                   <Label>
-                    Category <span className="text-red-500">*</span>
+                    Category <span className="text-destructive">*</span>
                   </Label>
                   <div className="flex flex-wrap gap-2">
                     {PROMOTION_CATEGORIES.map((cat) => (
@@ -383,6 +377,7 @@ export default function NewPromotionPage() {
                         key={cat}
                         type="button"
                         variant={category === cat ? "default" : "outline"}
+                        size="sm"
                         onClick={() => setCategory(cat)}
                         disabled={reachedLimit}
                       >
@@ -392,12 +387,13 @@ export default function NewPromotionPage() {
                   </div>
                 </div>
 
+                {/* Description */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="description">
-                      Description <span className="text-red-500">*</span>
+                      Description <span className="text-destructive">*</span>
                     </Label>
-                    <span className="text-xs text-gray-500">{description.length}/300</span>
+                    <span className="text-xs text-muted-foreground">{description.length}/300</span>
                   </div>
                   <Textarea
                     id="description"
@@ -415,6 +411,7 @@ export default function NewPromotionPage() {
                   />
                 </div>
 
+                {/* Address */}
                 <AddressAutocomplete
                   value={address}
                   onChange={handleAddressChange}
@@ -423,8 +420,9 @@ export default function NewPromotionPage() {
                   label="Business Address"
                 />
 
+                {/* Expiration Date */}
                 <div className="space-y-2">
-                  <Label htmlFor="expirationDate">Expiration Date</Label>
+                  <Label>Expiration Date (Optional)</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -449,7 +447,8 @@ export default function NewPromotionPage() {
                   </Popover>
                 </div>
 
-                <div className="space-y-2">
+                {/* Images */}
+                <div className="space-y-4">
                   <Label>Promotion Images (Up to {MAX_IMAGES})</Label>
 
                   {imagePreviewUrls.length > 0 && (
@@ -458,40 +457,44 @@ export default function NewPromotionPage() {
                     </div>
                   )}
 
+                  <div className="space-y-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => !reachedLimit && fileInputRef.current?.click()}
+                      disabled={reachedLimit || imageFiles.length >= MAX_IMAGES}
+                      className="w-full"
+                    >
+                      <ImagePlus className="h-4 w-4 mr-2" />
+                      {imageFiles.length === 0 ? "Add Images" : "Add More Images"}
+                      <Badge variant="secondary" className="ml-2">
+                        {imageFiles.length}/{MAX_IMAGES}
+                      </Badge>
+                    </Button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleImageChange}
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      disabled={reachedLimit || imageFiles.length >= MAX_IMAGES}
+                    />
+                    <p className="text-sm text-muted-foreground">Upload JPG or PNG images for your promotion</p>
+                  </div>
+                </div>
+
+                {/* Submit Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3 pt-6">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => !reachedLimit && fileInputRef.current?.click()}
-                    disabled={reachedLimit || imageFiles.length >= MAX_IMAGES}
-                    className="flex items-center gap-2"
+                    onClick={() => router.push("/dashboard/promotions")}
+                    className="sm:w-auto"
                   >
-                    <ImagePlus className="h-4 w-4" />
-                    {imageFiles.length === 0 ? "Add Images" : "Add More Images"}
-                    <span className="text-xs text-muted-foreground">
-                      ({imageFiles.length}/{MAX_IMAGES})
-                    </span>
-                  </Button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleImageChange}
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    disabled={reachedLimit || imageFiles.length >= MAX_IMAGES}
-                  />
-                  <div className="text-sm text-gray-500">Upload JPG or PNG images for your promotion</div>
-                </div>
-
-                <div className="pt-4 flex justify-end gap-4">
-                  <Button type="button" variant="outline" onClick={() => router.push("/dashboard/promotions")}>
                     Cancel
                   </Button>
-                  <Button
-                    type="submit"
-                    className="bg-[#6A0DAD] hover:bg-[#5a0b93]"
-                    disabled={isLoading || reachedLimit}
-                  >
+                  <Button type="submit" disabled={isLoading || reachedLimit} className="sm:flex-1">
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -507,45 +510,54 @@ export default function NewPromotionPage() {
           </Card>
         </div>
 
-        <div>
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="font-medium mb-4">Live Preview</h3>
+        {/* Preview Section */}
+        <div className="lg:col-span-1">
+          <Card className="sticky top-8">
+            <CardHeader>
+              <CardTitle className="text-lg">Live Preview</CardTitle>
+              <CardDescription>See how your promotion will appear</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="border rounded-lg overflow-hidden">
                 {imagePreviewUrls.length > 0 ? (
                   <ImageCarousel images={imagePreviewUrls} />
                 ) : (
-                  <div className="aspect-video bg-gray-100 flex items-center justify-center">
-                    <Tag className="h-12 w-12 text-gray-400" />
+                  <div className="aspect-video bg-muted flex items-center justify-center">
+                    <Tag className="h-12 w-12 text-muted-foreground" />
                   </div>
                 )}
-                <div className="p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Tag className="h-4 w-4 text-gray-500" />
-                    <span className="text-xs text-gray-500">{category || "Category"}</span>
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">
+                      <Tag className="h-3 w-3 mr-1" />
+                      {category || "Category"}
+                    </Badge>
                   </div>
-                  <h3 className="font-medium mb-2">{title || "Promotion Title"}</h3>
-                  <p className="text-sm text-gray-500 mb-3 line-clamp-2">
+                  <h3 className="font-semibold text-lg">{title || "Promotion Title"}</h3>
+                  <p className="text-sm text-muted-foreground line-clamp-3">
                     {description || "Promotion description will appear here..."}
                   </p>
                   {address && (
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
-                      <MapPin className="h-3 w-3" />
-                      <span>{address}</span>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{address}</span>
                     </div>
                   )}
                   {expirationDate && (
-                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                      <Calendar className="h-3 w-3" />
-                      <span>Expires: {format(expirationDate, "PPP")}</span>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4 flex-shrink-0" />
+                      <span>Expires: {format(expirationDate, "MMM d, yyyy")}</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="mt-6 bg-blue-50 p-4 rounded-lg">
-                <p className="text-blue-700 text-sm">Your promotion will be published immediately after creation.</p>
-              </div>
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  Your promotion will be published immediately after creation and will be visible to customers.
+                </AlertDescription>
+              </Alert>
             </CardContent>
           </Card>
         </div>
