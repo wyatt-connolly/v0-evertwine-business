@@ -383,7 +383,6 @@ export default function NewPromotionPage() {
                         key={cat}
                         type="button"
                         variant={category === cat ? "default" : "outline"}
-                        className={category === cat ? "bg-[#6A0DAD] hover:bg-[#5a0b93]" : ""}
                         onClick={() => setCategory(cat)}
                         disabled={reachedLimit}
                       >
