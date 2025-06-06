@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Calendar, Tag, MapPin, AlertCircle, ImagePlus } from "lucide-react"
-import { doc, updateDoc, getDoc, addDoc, collection, query, where, getDocs, type GeoPoint } from "firebase/firestore"
+import { doc, updateDoc, getDoc, addDoc, collection, query, where, getDocs, GeoPoint } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { db, storage } from "@/lib/firebase"
 import { format } from "date-fns"
@@ -26,6 +26,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ImageCarousel } from "@/components/image-carousel"
+import { AddressAutocomplete } from "@/components/address-autocomplete"
 
 const PROMOTION_CATEGORIES = ["Restaurant", "Health", "Entertainment", "Retail", "Spa", "Other"]
 const MAX_PROMOTIONS = 2
@@ -171,11 +172,33 @@ export default function NewPromotionPage() {
     setImagePreviewUrls(newPreviewUrls)
   }
 
-  const handleAddressChange = (newAddress: string) => {
+  const handleAddressChange = async (newAddress: string, place?: any) => {
     setAddress(newAddress)
-    // Reset location data since we're not using Google Places
+
+    // Reset previous location data
     setPlaceData(null)
     setGeoPoint(null)
+
+    if (place && place.lat && place.lng) {
+      try {
+        // Create GeoPoint for Firestore
+        const newGeoPoint = new GeoPoint(place.lat, place.lng)
+        setGeoPoint(newGeoPoint)
+
+        // Store enhanced place data
+        setPlaceData({
+          place_id: place.place_id,
+          formatted_address: place.formatted_address || newAddress,
+          name: place.name,
+          types: place.types,
+          lat: place.lat,
+          lng: place.lng,
+          location_name: place.location_name,
+        })
+      } catch (error) {
+        console.error("Error processing place data:", error)
+      }
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -392,16 +415,13 @@ export default function NewPromotionPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="address">Business Address</Label>
-                  <Input
-                    id="address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Enter your business address..."
-                    disabled={reachedLimit}
-                  />
-                </div>
+                <AddressAutocomplete
+                  value={address}
+                  onChange={handleAddressChange}
+                  disabled={reachedLimit}
+                  placeholder="Click to enter your business address..."
+                  label="Business Address"
+                />
 
                 <div className="space-y-2">
                   <Label htmlFor="expirationDate">Expiration Date</Label>
@@ -438,31 +458,29 @@ export default function NewPromotionPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => !reachedLimit && fileInputRef.current?.click()}
-                      disabled={reachedLimit || imageFiles.length >= MAX_IMAGES}
-                      className="flex items-center gap-2"
-                    >
-                      <ImagePlus className="h-4 w-4" />
-                      {imageFiles.length === 0 ? "Add Images" : "Add More Images"}
-                      <span className="text-xs text-muted-foreground">
-                        ({imageFiles.length}/{MAX_IMAGES})
-                      </span>
-                    </Button>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleImageChange}
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      disabled={reachedLimit || imageFiles.length >= MAX_IMAGES}
-                    />
-                    <div className="text-sm text-gray-500">Upload JPG or PNG images for your promotion</div>
-                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => !reachedLimit && fileInputRef.current?.click()}
+                    disabled={reachedLimit || imageFiles.length >= MAX_IMAGES}
+                    className="flex items-center gap-2"
+                  >
+                    <ImagePlus className="h-4 w-4" />
+                    {imageFiles.length === 0 ? "Add Images" : "Add More Images"}
+                    <span className="text-xs text-muted-foreground">
+                      ({imageFiles.length}/{MAX_IMAGES})
+                    </span>
+                  </Button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageChange}
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    disabled={reachedLimit || imageFiles.length >= MAX_IMAGES}
+                  />
+                  <div className="text-sm text-gray-500">Upload JPG or PNG images for your promotion</div>
                 </div>
 
                 <div className="pt-4 flex justify-end gap-4">
