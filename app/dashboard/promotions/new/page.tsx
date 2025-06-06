@@ -18,7 +18,19 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Calendar, Tag, MapPin, AlertCircle, ImagePlus, ArrowLeft } from "lucide-react"
-import { doc, updateDoc, getDoc, addDoc, collection, query, where, getDocs, GeoPoint } from "firebase/firestore"
+import {
+  doc,
+  updateDoc,
+  getDoc,
+  addDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  GeoPoint,
+  Timestamp,
+  serverTimestamp,
+} from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { db, storage } from "@/lib/firebase"
 import { format } from "date-fns"
@@ -264,13 +276,14 @@ export default function NewPromotionPage() {
         category,
         description,
         address,
-        ...(expirationDate && { expiration_date: expirationDate.toISOString() }),
+        ...(expirationDate && { expiration_date: Timestamp.fromDate(expirationDate) }), // Convert to Timestamp
         ...(imageURLs.length > 0 && {
           image_url: imageURLs[0],
           image_urls: imageURLs,
         }),
         status: "live",
-        created_at: new Date().toISOString(),
+        created_at: serverTimestamp(), // Use server timestamp
+        updated_at: serverTimestamp(), // Use server timestamp
         views: 0,
         clicks: 0,
       }

@@ -14,7 +14,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Upload, X } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
-import { doc, updateDoc, setDoc, getDoc, collection, query, where, getDocs, writeBatch } from "firebase/firestore"
+import {
+  doc,
+  updateDoc,
+  setDoc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  writeBatch,
+  serverTimestamp,
+} from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { db, auth, storage } from "@/lib/firebase"
 import { sendPasswordResetEmail } from "firebase/auth"
@@ -100,7 +111,7 @@ export default function SettingsPage() {
         const promotionRef = doc(db, "promotions", promotionDoc.id)
         batch.update(promotionRef, {
           business_name: newBusinessName,
-          updated_at: new Date().toISOString(),
+          updated_at: serverTimestamp(), // Use server timestamp
         })
         updateCount++
       })
@@ -164,7 +175,7 @@ export default function SettingsPage() {
         phone: phone,
         address: address,
         bio: bio,
-        updated_at: new Date().toISOString(),
+        updated_at: serverTimestamp(), // Use server timestamp
         ...(photoURL && { photo_url: photoURL, business_photo: photoURL }), // Add both fields for compatibility
       }
 
@@ -183,7 +194,7 @@ export default function SettingsPage() {
         // Create new document
         await setDoc(userRef, {
           ...profileData,
-          created_at: new Date().toISOString(),
+          created_at: serverTimestamp(), // Use server timestamp
           email: user.email,
           user_id: user.uid,
         })
@@ -229,7 +240,7 @@ export default function SettingsPage() {
         notification_customer_interactions: customerInteractions,
         notification_marketing_updates: marketingUpdates,
         notification_account_alerts: accountAlerts,
-        updated_at: new Date().toISOString(),
+        updated_at: serverTimestamp(), // Use server timestamp
       }
 
       // Only update in business_users collection
@@ -247,7 +258,7 @@ export default function SettingsPage() {
         // Create new document
         await setDoc(userRef, {
           ...notificationData,
-          created_at: new Date().toISOString(),
+          created_at: serverTimestamp(), // Use server timestamp
           email: user.email,
           user_id: user.uid,
         })
@@ -611,7 +622,7 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       <div className="grid grid-cols-3 p-3 text-sm border-t">
-                        <div>Jun 15, 2023</div>
+                        <div>Jul 15, 2023</div>
                         <div>$25.00</div>
                         <div className="text-right">
                           <Button variant="link" className="p-0 h-auto text-[#6A0DAD]">

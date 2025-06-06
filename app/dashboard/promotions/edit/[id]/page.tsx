@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Calendar, Tag, MapPin, ArrowLeft, ImagePlus } from "lucide-react"
-import { doc, updateDoc, getDoc, GeoPoint } from "firebase/firestore"
+import { doc, updateDoc, getDoc, GeoPoint, Timestamp, serverTimestamp } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { db, storage } from "@/lib/firebase"
 import { format } from "date-fns"
@@ -107,8 +107,15 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
           })
         }
 
+        // Handle expiration date - check if it's a Timestamp or string
         if (data.expiration_date) {
-          setExpirationDate(new Date(data.expiration_date))
+          if (data.expiration_date.toDate) {
+            // It's a Firestore Timestamp
+            setExpirationDate(data.expiration_date.toDate())
+          } else {
+            // It's a string, convert to Date
+            setExpirationDate(new Date(data.expiration_date))
+          }
         }
 
         // Handle both single image_url and multiple image_urls
@@ -289,12 +296,12 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
         description,
         address,
         business_name: finalBusinessName, // Add business name to the promotion
-        ...(expirationDate && { expiration_date: expirationDate.toISOString() }),
+        ...(expirationDate && { expiration_date: Timestamp.fromDate(expirationDate) }), // Convert to Timestamp
         ...(allImageUrls.length > 0 && {
           image_url: allImageUrls[0], // For backward compatibility
           image_urls: allImageUrls,
         }),
-        updated_at: new Date().toISOString(),
+        updated_at: serverTimestamp(), // Use server timestamp
         // Always keep status as live
         status: "live",
       }
