@@ -25,7 +25,6 @@ import { format } from "date-fns"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ImageCarousel } from "@/components/image-carousel"
-import { AddressAutocomplete } from "@/components/address-autocomplete"
 
 const PROMOTION_CATEGORIES = ["Restaurant", "Health", "Entertainment", "Retail", "Spa", "Other"]
 const MAX_IMAGES = 6
@@ -173,33 +172,11 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
     setExistingImageUrls(newUrls)
   }
 
-  const handleAddressChange = (newAddress: string, place?: any) => {
+  const handleAddressChange = (newAddress: string) => {
     setAddress(newAddress)
-
-    // Reset previous location data
+    // Reset location data since we're not using Google Places
     setPlaceData(null)
     setGeoPoint(null)
-
-    if (place && place.lat && place.lng) {
-      try {
-        // Create GeoPoint for Firestore
-        const newGeoPoint = new GeoPoint(place.lat, place.lng)
-        setGeoPoint(newGeoPoint)
-
-        // Store enhanced place data
-        setPlaceData({
-          place_id: place.place_id,
-          formatted_address: place.formatted_address || newAddress,
-          name: place.name,
-          types: place.types,
-          lat: place.lat,
-          lng: place.lng,
-          location_name: place.location_name,
-        })
-      } catch (error) {
-        console.error("Error processing place data on edit:", error)
-      }
-    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -378,12 +355,15 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
                   />
                 </div>
 
-                <AddressAutocomplete
-                  value={address}
-                  onChange={handleAddressChange}
-                  placeholder="Click to enter your business address..."
-                  label="Business Address"
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="address">Business Address</Label>
+                  <Input
+                    id="address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Enter your business address..."
+                  />
+                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="expirationDate">Expiration Date</Label>
