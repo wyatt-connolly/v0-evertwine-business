@@ -42,10 +42,28 @@ export function AddressAutocomplete({
       try {
         // Fetch API key from server
         const response = await fetch("/api/google-maps-config")
+
+        // Check if response is OK and is JSON
+        if (!response.ok) {
+          throw new Error(`API returned ${response.status}: ${response.statusText}`)
+        }
+
+        // Check content type to ensure we're getting JSON
+        const contentType = response.headers.get("content-type")
+        if (!contentType || !contentType.includes("application/json")) {
+          console.error("Google Maps config endpoint returned non-JSON response:", contentType)
+          throw new Error("Invalid response format from API")
+        }
+
         const data = await response.json()
 
         if (!data.apiKey) {
-          console.error("Google Maps API key not found")
+          console.error("Google Maps API key not found in response")
+          toast({
+            variant: "destructive",
+            title: "Configuration Error",
+            description: "Could not load address suggestions. Please try again later.",
+          })
           return
         }
 
@@ -65,12 +83,22 @@ export function AddressAutocomplete({
         script.onload = () => {
           initializeServices()
         }
-        script.onerror = () => {
-          console.error("Failed to load Google Maps script")
+        script.onerror = (e) => {
+          console.error("Failed to load Google Maps script", e)
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to load address suggestions. Please try again later.",
+          })
         }
         document.head.appendChild(script)
       } catch (error) {
         console.error("Error loading Google Maps:", error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not load address suggestions. Please try manually entering your address.",
+        })
       }
     }
 
