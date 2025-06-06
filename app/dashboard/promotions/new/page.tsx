@@ -28,7 +28,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ImageCarousel } from "@/components/image-carousel"
 import { AddressAutocomplete } from "@/components/address-autocomplete"
 
-const PROMOTION_CATEGORIES = ["Restaurant", "Spa", "Retail", "Entertainment", "Other"]
+const PROMOTION_CATEGORIES = ["Restaurant", "Health", "Entertainment", "Retail", "Spa", "Other"]
 const MAX_PROMOTIONS = 2
 const MAX_IMAGES = 6
 
@@ -370,6 +370,7 @@ export default function NewPromotionPage() {
                     placeholder="e.g. 20% Off Lunch Specials"
                     required
                     disabled={reachedLimit}
+                    className="border-gray-200 focus:border-purple-300 focus:ring-purple-200 focus:ring-2 transition-all duration-200"
                   />
                 </div>
 
@@ -383,7 +384,11 @@ export default function NewPromotionPage() {
                         key={cat}
                         type="button"
                         variant={category === cat ? "default" : "outline"}
-                        className={category === cat ? "bg-[#6A0DAD] hover:bg-[#5a0b93]" : ""}
+                        className={
+                          category === cat
+                            ? "bg-[#6A0DAD] hover:bg-[#5a0b93] border-[#6A0DAD] text-white"
+                            : "border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-all duration-200"
+                        }
                         onClick={() => setCategory(cat)}
                         disabled={reachedLimit}
                       >
@@ -409,7 +414,7 @@ export default function NewPromotionPage() {
                       }
                     }}
                     placeholder="Describe your promotion in detail..."
-                    className="resize-none"
+                    className="resize-none border-gray-200 focus:border-purple-300 focus:ring-purple-200 focus:ring-2 transition-all duration-200"
                     rows={4}
                     required
                     disabled={reachedLimit}
@@ -431,7 +436,7 @@ export default function NewPromotionPage() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="w-full justify-start text-left font-normal"
+                        className="w-full justify-start text-left font-normal border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-all duration-200"
                         disabled={reachedLimit}
                       >
                         <Calendar className="mr-2 h-4 w-4" />

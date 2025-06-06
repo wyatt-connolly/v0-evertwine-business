@@ -27,7 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ImageCarousel } from "@/components/image-carousel"
 import { AddressAutocomplete } from "@/components/address-autocomplete"
 
-const PROMOTION_CATEGORIES = ["Restaurant", "Spa", "Retail", "Entertainment", "Other"]
+const PROMOTION_CATEGORIES = ["Restaurant", "Health", "Entertainment", "Retail", "Spa", "Other"]
 const MAX_IMAGES = 6
 
 export default function EditPromotionPage({ params }: { params: { id: string } }) {
@@ -335,6 +335,7 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. 20% Off Lunch Specials"
                     required
+                    className="border-gray-200 focus:border-purple-300 focus:ring-purple-200 focus:ring-2 transition-all duration-200"
                   />
                 </div>
 
@@ -348,7 +349,11 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
                         key={cat}
                         type="button"
                         variant={category === cat ? "default" : "outline"}
-                        className={category === cat ? "bg-[#6A0DAD] hover:bg-[#5a0b93]" : ""}
+                        className={
+                          category === cat
+                            ? "bg-[#6A0DAD] hover:bg-[#5a0b93] border-[#6A0DAD] text-white"
+                            : "border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-all duration-200"
+                        }
                         onClick={() => setCategory(cat)}
                       >
                         {cat}
@@ -373,7 +378,7 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
                       }
                     }}
                     placeholder="Describe your promotion in detail..."
-                    className="resize-none"
+                    className="resize-none border-gray-200 focus:border-purple-300 focus:ring-purple-200 focus:ring-2 transition-all duration-200"
                     rows={4}
                     required
                   />
@@ -390,7 +395,10 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
                   <Label htmlFor="expirationDate">Expiration Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-all duration-200"
+                      >
                         <Calendar className="mr-2 h-4 w-4" />
                         {expirationDate ? format(expirationDate, "PPP") : <span>Pick a date</span>}
                       </Button>

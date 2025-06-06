@@ -261,7 +261,7 @@ export function AddressAutocomplete({
           <Button
             type="button"
             variant="outline"
-            className="w-full justify-start text-left font-normal h-auto p-3"
+            className="w-full justify-start text-left font-normal h-auto p-3 border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-all duration-200"
             disabled={disabled}
             onClick={openModal}
           >
@@ -280,7 +280,7 @@ export function AddressAutocomplete({
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Start typing your address..."
-                className="w-full"
+                className="w-full border-gray-200 focus:border-purple-300 focus:ring-purple-200 focus:ring-2 transition-all duration-200"
                 autoFocus
               />
               {isLoading && (
