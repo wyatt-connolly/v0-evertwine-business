@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { MapPin, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
+import { Card } from "@/components/ui/card"
 
 interface AddressAutocompleteProps {
   value: string
@@ -261,19 +262,22 @@ export function AddressAutocomplete({
           <Button
             type="button"
             variant="outline"
-            className="w-full justify-start text-left font-normal h-auto p-3"
+            className="w-full justify-start text-left font-normal h-auto min-h-[2.5rem] p-3 hover:bg-accent/50 transition-colors"
             disabled={disabled}
             onClick={openModal}
           >
-            <MapPin className="mr-2 h-4 w-4 flex-shrink-0" />
-            <span className="truncate">{value || placeholder}</span>
+            <MapPin className="mr-3 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+            <span className="truncate text-sm">
+              {value || <span className="text-muted-foreground">{placeholder}</span>}
+            </span>
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Enter Business Address</DialogTitle>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader className="space-y-3">
+            <DialogTitle className="text-xl font-semibold">Enter Business Address</DialogTitle>
+            <p className="text-sm text-muted-foreground">Search for your business address or enter it manually</p>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-6 pt-2">
             <div className="relative">
               <Input
                 value={inputValue}
@@ -293,28 +297,30 @@ export function AddressAutocomplete({
             {!isGoogleMapsLoaded && <div className="text-sm text-muted-foreground">Loading address suggestions...</div>}
 
             {predictions.length > 0 && (
-              <div className="border rounded-md max-h-60 overflow-y-auto">
+              <Card className="max-h-60 overflow-y-auto">
                 {predictions.map((prediction, index) => (
                   <button
                     key={prediction.place_id}
                     type="button"
-                    className={`w-full text-left p-3 hover:bg-accent transition-colors border-b last:border-b-0 ${
-                      index === selectedIndex ? "bg-accent" : ""
+                    className={`w-full text-left p-4 hover:bg-accent/50 transition-colors border-b last:border-b-0 ${
+                      index === selectedIndex ? "bg-accent/50" : ""
                     }`}
                     onClick={() => handlePredictionSelect(prediction)}
                   >
-                    <div className="flex items-start gap-2">
-                      <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{prediction.structured_formatting?.main_text}</div>
-                        <div className="text-sm text-muted-foreground truncate">
+                    <div className="flex items-start gap-3">
+                      <MapPin className="h-4 w-4 mt-1 flex-shrink-0 text-muted-foreground" />
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="font-medium text-sm truncate">
+                          {prediction.structured_formatting?.main_text}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
                           {prediction.structured_formatting?.secondary_text}
                         </div>
                       </div>
                     </div>
                   </button>
                 ))}
-              </div>
+              </Card>
             )}
 
             <div className="flex gap-2">
