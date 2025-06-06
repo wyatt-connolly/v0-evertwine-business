@@ -291,7 +291,7 @@ export default function PromotionsPage() {
                     </div>
                     <div className="flex gap-2">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="icon"
                         onClick={() => router.push(`/dashboard/promotions/edit/${promotion.id}`)}
                         disabled={!hasActiveSubscription}
@@ -301,7 +301,7 @@ export default function PromotionsPage() {
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
                             className="text-red-500"
                             disabled={!hasActiveSubscription}
