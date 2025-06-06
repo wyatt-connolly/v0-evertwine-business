@@ -325,7 +325,7 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-6">
               <Link href="/dashboard/promotions/new">
                 <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/30 p-6 border border-purple-200/50 dark:border-purple-700/50 hover:shadow-lg hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-300 cursor-pointer">
                   <div className="flex items-center gap-4">
