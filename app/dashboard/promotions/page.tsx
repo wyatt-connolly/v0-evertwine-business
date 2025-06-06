@@ -141,6 +141,30 @@ export default function PromotionsPage() {
     router.push("/dashboard/promotions/new")
   }
 
+  // Helper function to safely format dates from Firestore
+  const formatExpirationDate = (date: any) => {
+    if (!date) return null
+
+    try {
+      // Handle Firestore Timestamp
+      if (date && typeof date.toDate === "function") {
+        return format(date.toDate(), "MMM d, yyyy")
+      }
+      // Handle ISO string
+      else if (typeof date === "string") {
+        return format(new Date(date), "MMM d, yyyy")
+      }
+      // Handle Date object
+      else if (date instanceof Date) {
+        return format(date, "MMM d, yyyy")
+      }
+      return null
+    } catch (error) {
+      console.error("Error formatting date:", error, date)
+      return "Invalid date"
+    }
+  }
+
   if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -256,6 +280,8 @@ export default function PromotionsPage() {
           {promotions.map((promotion) => {
             const CategoryIcon = categoryIcons[promotion.category] || Tag
             const placeholderImage = categoryPlaceholders[promotion.category] || categoryPlaceholders.Other
+            const expirationDateFormatted = formatExpirationDate(promotion.expiration_date)
+
             return (
               <Card key={promotion.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-200">
                 <div className="aspect-video w-full relative">
@@ -297,10 +323,10 @@ export default function PromotionsPage() {
                         <span className="truncate">{promotion.address}</span>
                       </div>
                     )}
-                    {promotion.expiration_date && (
+                    {expirationDateFormatted && (
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 flex-shrink-0" />
-                        <span>Expires {format(new Date(promotion.expiration_date), "MMM d, yyyy")}</span>
+                        <span>Expires {expirationDateFormatted}</span>
                       </div>
                     )}
                   </div>
