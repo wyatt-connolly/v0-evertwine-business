@@ -80,7 +80,7 @@ export default function Dashboard() {
   const ctr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : 0
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-8 max-w-7xl mx-auto pt-20 sm:pt-24 md:pt-28">
       {/* Welcome Hero Section */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8 lg:p-12">
         {/* Animated background elements */}
