@@ -82,7 +82,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-8 max-w-7xl mx-auto pt-20 sm:pt-24 md:pt-28">
       {/* Welcome Hero Section */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8 lg:p-12">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8 lg:p-12 z-0">
         {/* Animated background elements */}
         <div className="absolute inset-0">
           <div className="absolute top-0 left-1/4 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
