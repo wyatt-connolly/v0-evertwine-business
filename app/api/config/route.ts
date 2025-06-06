@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 
 export async function GET() {
   try {
+    console.log("🔧 Config API called")
+
     // Get all configuration from server-side environment variables
     const config = {
       googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
@@ -16,6 +18,15 @@ export async function GET() {
       },
     }
 
+    // Log what we're getting (without sensitive data)
+    console.log("🔍 Environment check:", {
+      hasGoogleMaps: !!config.googleMapsApiKey,
+      hasStripe: !!config.stripePublishableKey,
+      hasFirebaseApiKey: !!config.firebaseConfig.apiKey,
+      hasFirebaseProjectId: !!config.firebaseConfig.projectId,
+      hasFirebaseAuthDomain: !!config.firebaseConfig.authDomain,
+    })
+
     // Validate that all required config is present
     const missingConfig = []
 
@@ -29,7 +40,7 @@ export async function GET() {
     if (!config.firebaseConfig.appId) missingConfig.push("Firebase App ID")
 
     if (missingConfig.length > 0) {
-      console.error("Missing configuration:", missingConfig)
+      console.error("❌ Missing configuration:", missingConfig)
       return NextResponse.json(
         {
           error: "Configuration incomplete",
@@ -40,12 +51,20 @@ export async function GET() {
       )
     }
 
+    console.log("✅ Configuration complete and valid")
     return NextResponse.json({
       ...config,
       success: true,
     })
   } catch (error) {
-    console.error("Error fetching configuration:", error)
-    return NextResponse.json({ error: "Failed to fetch configuration", success: false }, { status: 500 })
+    console.error("❌ Error in config API:", error)
+    return NextResponse.json(
+      {
+        error: "Failed to fetch configuration",
+        details: error.message,
+        success: false,
+      },
+      { status: 500 },
+    )
   }
 }
