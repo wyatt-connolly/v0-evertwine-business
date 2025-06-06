@@ -39,6 +39,7 @@ export default function NewPromotionPage() {
   const [category, setCategory] = useState("")
   const [description, setDescription] = useState("")
   const [address, setAddress] = useState("")
+  const [businessName, setBusinessName] = useState("")
   const [placeData, setPlaceData] = useState<any>(null)
   const [geoPoint, setGeoPoint] = useState<GeoPoint | null>(null)
   const [expirationDate, setExpirationDate] = useState<Date | undefined>(undefined)
@@ -98,6 +99,8 @@ export default function NewPromotionPage() {
         if (docSnap.exists()) {
           const data = docSnap.data()
           setAddress(data.address || "")
+          setBusinessName(data.business_name || "")
+          console.log("Fetched business name:", data.business_name)
         }
       } catch (error) {
         console.error("Error fetching user data:", error)
@@ -241,8 +244,22 @@ export default function NewPromotionPage() {
         }
       }
 
+      // Get business name if not already set
+      let finalBusinessName = businessName
+      if (!finalBusinessName) {
+        try {
+          const userDoc = await getDoc(doc(db, "business_users", user.uid))
+          if (userDoc.exists()) {
+            finalBusinessName = userDoc.data().business_name || ""
+          }
+        } catch (error) {
+          console.error("Error fetching business name:", error)
+        }
+      }
+
       const promotionData: any = {
         business_id: user.uid,
+        business_name: finalBusinessName, // Add business name to the promotion
         title,
         category,
         description,
@@ -257,6 +274,8 @@ export default function NewPromotionPage() {
         views: 0,
         clicks: 0,
       }
+
+      console.log("Creating promotion with business name:", finalBusinessName)
 
       if (geoPoint && placeData) {
         promotionData.location = geoPoint
@@ -351,6 +370,21 @@ export default function NewPromotionPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Business Name - Display only */}
+                <div className="space-y-2">
+                  <Label htmlFor="businessName">Business Name</Label>
+                  <Input
+                    id="businessName"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    placeholder="Your business name"
+                    disabled={true}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This is your registered business name and cannot be changed here
+                  </p>
+                </div>
+
                 {/* Title */}
                 <div className="space-y-2">
                   <Label htmlFor="title">
@@ -527,6 +561,7 @@ export default function NewPromotionPage() {
                   </div>
                 )}
                 <div className="p-4 space-y-3">
+                  {businessName && <div className="text-sm font-medium text-primary">{businessName}</div>}
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">
                       <Tag className="h-3 w-3 mr-1" />
