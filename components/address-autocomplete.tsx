@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import { google } from "googlemaps"
 import { forwardRef, useState, useEffect, useCallback, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -177,4 +177,4 @@ const AddressAutocomplete = forwardRef<HTMLInputElement, AddressAutocompleteProp
 )
 AddressAutocomplete.displayName = "AddressAutocomplete"
 
-export default AddressAutocomplete
+export { AddressAutocomplete }
