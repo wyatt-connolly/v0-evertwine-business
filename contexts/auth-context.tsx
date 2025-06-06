@@ -12,7 +12,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from "firebase/auth"
-import { doc, getDoc, setDoc } from "firebase/firestore"
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
 import { getFirebaseServices } from "@/lib/firebase"
 
 // Initialize Google provider only
@@ -126,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await setDoc(doc(db, "business_users", userCredential.user.uid), {
       ...userData,
       email,
-      created_at: new Date().toISOString(),
+      created_at: serverTimestamp(), // Use server timestamp
       status: "pending",
       plan: "free",
       promotions_used: 0,
@@ -170,7 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: user.email,
         phone: user.phoneNumber || "",
         photo_url: user.photoURL || "",
-        created_at: new Date().toISOString(),
+        created_at: serverTimestamp(), // Use server timestamp
         status: "pending",
         plan: "free",
         promotions_used: 0,
