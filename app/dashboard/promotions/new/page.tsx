@@ -119,18 +119,23 @@ export default function NewPromotionPage() {
       }
 
       try {
-        const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
-        const promotionsSnapshot = await getDocs(promotionsQuery)
+        // Query meetups collection for business-created meetups
+        const meetupsQuery = query(
+          collection(db, "meetups"),
+          where("creator_id", "==", user.uid),
+          where("creator_type", "==", "business"),
+        )
+        const meetupsSnapshot = await getDocs(meetupsQuery)
 
-        const promotionsData = promotionsSnapshot.docs
+        const meetupsData = meetupsSnapshot.docs
           .map((doc) => ({
             id: doc.id,
             ...doc.data(),
           }))
-          .filter((promo) => promo.status === "live")
+          .filter((meetup) => meetup.status === "live")
 
-        setExistingPromotions(promotionsData)
-        const hasReachedLimit = promotionsData.length >= MAX_PROMOTIONS
+        setExistingPromotions(meetupsData)
+        const hasReachedLimit = meetupsData.length >= MAX_PROMOTIONS
         setReachedLimit(hasReachedLimit)
       } catch (error) {
         console.error("Error fetching promotions count:", error)
@@ -239,7 +244,7 @@ export default function NewPromotionPage() {
           const uploadPromises = imageFiles.map(async (file) => {
             const storageRef = ref(
               storage,
-              `promotions/${user.uid}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`,
+              `meetups/${user.uid}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`,
             )
             await uploadBytes(storageRef, file)
             return getDownloadURL(storageRef)
@@ -269,39 +274,46 @@ export default function NewPromotionPage() {
         }
       }
 
-      const promotionData: any = {
-        business_id: user.uid,
-        business_name: finalBusinessName, // Add business name to the promotion
+      const meetupData: any = {
+        creator_id: user.uid,
+        creator_type: "business", // Differentiate from user-created meetups
+        business_id: user.uid, // Keep for backward compatibility
+        business_name: finalBusinessName,
         title,
         category,
         description,
         address,
-        ...(expirationDate && { expiration_date: Timestamp.fromDate(expirationDate) }), // Convert to Timestamp
+        ...(expirationDate && { expiration_date: Timestamp.fromDate(expirationDate) }),
         ...(imageURLs.length > 0 && {
           image_url: imageURLs[0],
           image_urls: imageURLs,
         }),
         status: "live",
-        created_at: serverTimestamp(), // Use server timestamp
-        updated_at: serverTimestamp(), // Use server timestamp
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
         views: 0,
         clicks: 0,
+        // Additional fields for meetup compatibility
+        type: "promotion", // Distinguish from regular meetups
+        attendees: [],
+        max_attendees: null,
       }
 
-      console.log("Creating promotion with business name:", finalBusinessName)
+      console.log("Creating business meetup with data:", finalBusinessName)
 
       if (geoPoint && placeData) {
-        promotionData.location = geoPoint
-        if (placeData.place_id) promotionData.place_id = placeData.place_id
-        if (placeData.formatted_address) promotionData.formatted_address = placeData.formatted_address
-        if (placeData.name) promotionData.place_name = placeData.name
-        if (placeData.types && placeData.types.length > 0) promotionData.place_types = placeData.types
-        if (placeData.location_name) promotionData.location_name = placeData.location_name
+        meetupData.location = geoPoint
+        if (placeData.place_id) meetupData.place_id = placeData.place_id
+        if (placeData.formatted_address) meetupData.formatted_address = placeData.formatted_address
+        if (placeData.name) meetupData.place_name = placeData.name
+        if (placeData.types && placeData.types.length > 0) meetupData.place_types = placeData.types
+        if (placeData.location_name) meetupData.location_name = placeData.location_name
       } else if (address) {
-        promotionData.address = address
+        meetupData.address = address
       }
 
-      const docRef = await addDoc(collection(db, "promotions"), promotionData)
+      // Save to meetups collection instead of promotions
+      const docRef = await addDoc(collection(db, "meetups"), meetupData)
 
       try {
         const businessRef = doc(db, "business_users", user.uid)

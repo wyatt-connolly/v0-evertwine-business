@@ -59,8 +59,17 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
       }
 
       try {
-        const docRef = doc(db, "promotions", params.id)
-        const docSnap = await getDoc(docRef)
+        // Try to find in meetups collection first (new format)
+        let docRef = doc(db, "meetups", params.id)
+        let docSnap = await getDoc(docRef)
+        let isFromMeetups = true
+
+        // If not found in meetups, try promotions collection (backward compatibility)
+        if (!docSnap.exists()) {
+          docRef = doc(db, "promotions", params.id)
+          docSnap = await getDoc(docRef)
+          isFromMeetups = false
+        }
 
         if (!docSnap.exists()) {
           toast({
@@ -75,11 +84,23 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
         const data = docSnap.data()
 
         // Check if the promotion belongs to the current user
-        if (data.business_id !== user.uid) {
+        const creatorId = data.creator_id || data.business_id
+        if (creatorId !== user.uid) {
           toast({
             variant: "destructive",
             title: "Access denied",
             description: "You do not have permission to edit this promotion.",
+          })
+          router.push("/dashboard/promotions")
+          return
+        }
+
+        // Only allow editing business-created meetups
+        if (isFromMeetups && data.creator_type !== "business") {
+          toast({
+            variant: "destructive",
+            title: "Access denied",
+            description: "You can only edit business promotions.",
           })
           router.push("/dashboard/promotions")
           return
@@ -257,7 +278,7 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
           const uploadPromises = imageFiles.map(async (file) => {
             const storageRef = ref(
               storage,
-              `promotions/${user.uid}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`,
+              `meetups/${user.uid}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`,
             )
             await uploadBytes(storageRef, file)
             return getDownloadURL(storageRef)
@@ -290,38 +311,45 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
         }
       }
 
-      const promotionData: any = {
+      const meetupData: any = {
         title,
         category,
         description,
         address,
-        business_name: finalBusinessName, // Add business name to the promotion
-        ...(expirationDate && { expiration_date: Timestamp.fromDate(expirationDate) }), // Convert to Timestamp
+        business_name: finalBusinessName,
+        creator_type: "business", // Ensure it's marked as business-created
+        ...(expirationDate && { expiration_date: Timestamp.fromDate(expirationDate) }),
         ...(allImageUrls.length > 0 && {
           image_url: allImageUrls[0], // For backward compatibility
           image_urls: allImageUrls,
         }),
-        updated_at: serverTimestamp(), // Use server timestamp
+        updated_at: serverTimestamp(),
         // Always keep status as live
         status: "live",
+        type: "promotion", // Distinguish from regular meetups
       }
 
-      console.log("Updating promotion with business name:", finalBusinessName)
+      console.log("Updating business meetup with data:", finalBusinessName)
 
       // Add enhanced location data if available
       if (geoPoint && placeData) {
-        promotionData.location = geoPoint
-        if (placeData.place_id) promotionData.place_id = placeData.place_id
-        if (placeData.formatted_address) promotionData.formatted_address = placeData.formatted_address
-        if (placeData.name) promotionData.place_name = placeData.name
-        if (placeData.types && placeData.types.length > 0) promotionData.place_types = placeData.types
-        if (placeData.location_name) promotionData.location_name = placeData.location_name
+        meetupData.location = geoPoint
+        if (placeData.place_id) meetupData.place_id = placeData.place_id
+        if (placeData.formatted_address) meetupData.formatted_address = placeData.formatted_address
+        if (placeData.name) meetupData.place_name = placeData.name
+        if (placeData.types && placeData.types.length > 0) meetupData.place_types = placeData.types
+        if (placeData.location_name) meetupData.location_name = placeData.location_name
       } else if (address) {
-        promotionData.address = address
+        meetupData.address = address
       }
 
-      // Update promotion in Firestore
-      await updateDoc(doc(db, "promotions", params.id), promotionData)
+      // Try to update in meetups collection first, then promotions for backward compatibility
+      try {
+        await updateDoc(doc(db, "meetups", params.id), meetupData)
+      } catch (meetupError) {
+        // If not found in meetups, try promotions collection
+        await updateDoc(doc(db, "promotions", params.id), meetupData)
+      }
 
       toast({
         title: "Success",

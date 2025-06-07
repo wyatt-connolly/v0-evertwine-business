@@ -80,15 +80,40 @@ export default function PromotionsPage() {
 
     setLoading(true)
     try {
-      const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
-      const promotionsSnapshot = await getDocs(promotionsQuery)
+      // Query meetups collection for business-created promotions
+      const meetupsQuery = query(
+        collection(db, "meetups"),
+        where("creator_id", "==", user.uid),
+        where("creator_type", "==", "business"),
+      )
+      const meetupsSnapshot = await getDocs(meetupsQuery)
 
-      const promotionsData = promotionsSnapshot.docs
+      let promotionsData = meetupsSnapshot.docs
         .map((doc) => ({
           id: doc.id,
           ...doc.data(),
+          collection: "meetups", // Track which collection this came from
         }))
         .filter((promo) => promo.status === "live")
+
+      // Also check the old promotions collection for backward compatibility
+      try {
+        const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
+        const promotionsSnapshot = await getDocs(promotionsQuery)
+
+        const oldPromotionsData = promotionsSnapshot.docs
+          .map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+            collection: "promotions", // Track which collection this came from
+          }))
+          .filter((promo) => promo.status === "live")
+
+        // Combine both collections
+        promotionsData = [...promotionsData, ...oldPromotionsData]
+      } catch (error) {
+        console.log("No old promotions found or error accessing promotions collection:", error)
+      }
 
       setPromotions(promotionsData)
     } catch (error: any) {
@@ -112,10 +137,11 @@ export default function PromotionsPage() {
     }
   }, [user, authLoading])
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, collection = "meetups") => {
     setDeletingId(id)
     try {
-      await deleteDoc(doc(db, "promotions", id))
+      // Delete from the appropriate collection
+      await deleteDoc(doc(db, collection, id))
       setPromotions(promotions.filter((promo) => promo.id !== id))
       toast({
         title: "Success",
@@ -373,7 +399,7 @@ export default function PromotionsPage() {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => handleDelete(promotion.id)}
+                              onClick={() => handleDelete(promotion.id, promotion.collection)}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
                               {deletingId === promotion.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
