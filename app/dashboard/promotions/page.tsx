@@ -94,7 +94,7 @@ export default function PromotionsPage() {
           ...doc.data(),
           collection: "meetups", // Track which collection this came from
         }))
-        .filter((promo) => promo.status === "live")
+        .filter((promo) => promo.is_live === true)
 
       // Also check the old promotions collection for backward compatibility
       try {
@@ -107,7 +107,7 @@ export default function PromotionsPage() {
             ...doc.data(),
             collection: "promotions", // Track which collection this came from
           }))
-          .filter((promo) => promo.status === "live")
+          .filter((promo) => promo.is_live === true)
 
         // Combine both collections
         promotionsData = [...promotionsData, ...oldPromotionsData]
@@ -331,7 +331,7 @@ export default function PromotionsPage() {
                     </Badge>
                   </div>
                   <div className="absolute top-3 right-3">
-                    <Badge className="bg-green-500 hover:bg-green-600">Live</Badge>
+                    <Badge className="bg-green-500 hover:bg-green-600">{promotion.is_live ? "Live" : "Draft"}</Badge>
                   </div>
                 </div>
 

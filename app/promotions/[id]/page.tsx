@@ -26,7 +26,7 @@ export default function PromotionDetailsPage({ params }: { params: { id: string 
             const data = docSnap.data()
 
             // Only show live promotions
-            if (data.status !== "live") {
+            if (data.is_live !== true) {
               router.push("/promotions")
               return
             }

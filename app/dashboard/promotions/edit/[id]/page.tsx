@@ -44,7 +44,7 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([])
-  const [status, setStatus] = useState("")
+  const [isLive, setIsLive] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -110,7 +110,7 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
         setCategory(data.category || "")
         setDescription(data.description || "")
         setAddress(data.address || data.formatted_address || "")
-        setStatus(data.status || "live")
+        setIsLive(data.is_live !== false) // Default to true if not set
         setBusinessName(data.business_name || "")
 
         // Handle enhanced location data
@@ -121,7 +121,7 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
           setPlaceData({
             place_id: data.place_id,
             formatted_address: data.formatted_address || data.address,
-            name: data.location_name,
+            name: data.place_name,
             types: data.place_types,
             lat: data.location.latitude,
             lng: data.location.longitude,
@@ -324,8 +324,8 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
           image_urls: allImageUrls,
         }),
         updated_at: serverTimestamp(),
-        // Always keep status as live
-        status: "live",
+        // Always keep is_live as true
+        is_live: true,
         type: "promotion", // Distinguish from regular meetups
       }
 
@@ -336,7 +336,7 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
         meetupData.location = geoPoint
         if (placeData.place_id) meetupData.place_id = placeData.place_id
         if (placeData.formatted_address) meetupData.formatted_address = placeData.formatted_address
-        if (placeData.location_name) meetupData.location_name = placeData.name
+        if (placeData.name) meetupData.place_name = placeData.name
         if (placeData.types && placeData.types.length > 0) meetupData.place_types = placeData.types
         if (placeData.location_name) meetupData.location_name = placeData.location_name
       } else if (address) {
