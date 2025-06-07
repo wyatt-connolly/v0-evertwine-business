@@ -305,7 +305,7 @@ export default function NewPromotionPage() {
         meetupData.location = geoPoint
         if (placeData.place_id) meetupData.place_id = placeData.place_id
         if (placeData.formatted_address) meetupData.formatted_address = placeData.formatted_address
-        if (placeData.name) meetupData.place_name = placeData.name
+        if (placeData.name) meetupData.location_name = placeData.name
         if (placeData.types && placeData.types.length > 0) meetupData.place_types = placeData.types
         if (placeData.location_name) meetupData.location_name = placeData.location_name
       } else if (address) {

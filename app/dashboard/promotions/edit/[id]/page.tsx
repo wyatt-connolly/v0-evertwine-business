@@ -121,7 +121,7 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
           setPlaceData({
             place_id: data.place_id,
             formatted_address: data.formatted_address || data.address,
-            name: data.place_name,
+            name: data.location_name,
             types: data.place_types,
             lat: data.location.latitude,
             lng: data.location.longitude,
@@ -336,7 +336,7 @@ export default function EditPromotionPage({ params }: { params: { id: string } }
         meetupData.location = geoPoint
         if (placeData.place_id) meetupData.place_id = placeData.place_id
         if (placeData.formatted_address) meetupData.formatted_address = placeData.formatted_address
-        if (placeData.name) meetupData.place_name = placeData.name
+        if (placeData.location_name) meetupData.location_name = placeData.name
         if (placeData.types && placeData.types.length > 0) meetupData.place_types = placeData.types
         if (placeData.location_name) meetupData.location_name = placeData.location_name
       } else if (address) {
