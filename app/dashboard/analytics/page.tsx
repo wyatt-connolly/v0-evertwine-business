@@ -21,8 +21,9 @@ import {
 import { collection, query, where, getDocs, orderBy, limit, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/contexts/auth-context"
-import { Loader2, RefreshCw } from "lucide-react"
+import { Loader2, RefreshCw, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function AnalyticsPage() {
   const { user } = useAuth()
@@ -66,20 +67,52 @@ export default function AnalyticsPage() {
 
       setLoading(true)
       try {
-        const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
-        const promotionsSnapshot = await getDocs(promotionsQuery)
-        const promotionsData = promotionsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
+        let promotionsData = []
 
-        setPromotions(promotionsData)
+        // First try to fetch from meetups collection (new structure)
+        try {
+          const meetupsQuery = query(
+            collection(db, "meetups"),
+            where("creator_id", "==", user.uid),
+            where("creator_type", "==", "business"),
+          )
+          const meetupsSnapshot = await getDocs(meetupsQuery)
+          const meetupsData = meetupsSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+            source: "meetups",
+          }))
+          promotionsData = [...promotionsData, ...meetupsData]
+        } catch (meetupsError) {
+          console.warn("Could not fetch from meetups collection:", meetupsError)
+        }
+
+        // Also try to fetch from promotions collection (backward compatibility)
+        try {
+          const promotionsQuery = query(collection(db, "promotions"), where("business_id", "==", user.uid))
+          const promotionsSnapshot = await getDocs(promotionsQuery)
+          const oldPromotionsData = promotionsSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+            source: "promotions",
+          }))
+          promotionsData = [...promotionsData, ...oldPromotionsData]
+        } catch (promotionsError) {
+          console.warn("Could not fetch from promotions collection:", promotionsError)
+        }
+
+        // Remove duplicates based on ID (in case same promotion exists in both collections)
+        const uniquePromotions = promotionsData.filter(
+          (promo, index, self) => index === self.findIndex((p) => p.id === promo.id),
+        )
+
+        setPromotions(uniquePromotions)
 
         // Calculate totals
         let views = 0
         let clicks = 0
 
-        promotionsData.forEach((promo) => {
+        uniquePromotions.forEach((promo) => {
           views += promo.views || 0
           clicks += promo.clicks || 0
         })
@@ -113,6 +146,13 @@ export default function AnalyticsPage() {
         setClicksData(clicksDistribution)
       } catch (error) {
         console.error("Error fetching promotions:", error)
+        // Don't throw the error, just log it and continue with empty data
+        setPromotions([])
+        setTotalViews(0)
+        setTotalClicks(0)
+        setCtr(0)
+        setViewsData([])
+        setClicksData([])
       } finally {
         setLoading(false)
       }
@@ -132,43 +172,63 @@ export default function AnalyticsPage() {
         )
 
         // Set up real-time listener for QR code interactions
-        unsubscribeQR = onSnapshot(qrQuery, (snapshot) => {
-          const interactions = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
+        unsubscribeQR = onSnapshot(
+          qrQuery,
+          (snapshot) => {
+            const interactions = snapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }))
 
-          // Count shown and redeemed QR codes
-          const shown = interactions.filter((item) => item.action === "shown").length
-          const redeemed = interactions.filter((item) => item.action === "redeemed").length
-          const conversionRate = shown > 0 ? Math.round((redeemed / shown) * 100) : 0
+            // Count shown and redeemed QR codes
+            const shown = interactions.filter((item) => item.action === "shown").length
+            const redeemed = interactions.filter((item) => item.action === "redeemed").length
+            const conversionRate = shown > 0 ? Math.round((redeemed / shown) * 100) : 0
 
-          setQrCodeStats({
-            shown,
-            redeemed,
-            conversionRate,
-          })
-
-          // Process data for chart - group by day
-          const last7Days = getLast7Days()
-          const chartData = last7Days.map((date) => {
-            const dayStr = date.toISOString().split("T")[0]
-            const dayInteractions = interactions.filter((item) => {
-              const itemDate = new Date(item.timestamp.seconds * 1000)
-              return itemDate.toISOString().split("T")[0] === dayStr
+            setQrCodeStats({
+              shown,
+              redeemed,
+              conversionRate,
             })
 
-            return {
-              date: formatDate(date),
-              shown: dayInteractions.filter((item) => item.action === "shown").length,
-              redeemed: dayInteractions.filter((item) => item.action === "redeemed").length,
-            }
-          })
+            // Process data for chart - group by day
+            const last7Days = getLast7Days()
+            const chartData = last7Days.map((date) => {
+              const dayStr = date.toISOString().split("T")[0]
+              const dayInteractions = interactions.filter((item) => {
+                const itemDate = new Date(item.timestamp.seconds * 1000)
+                return itemDate.toISOString().split("T")[0] === dayStr
+              })
 
-          setQrCodeData(chartData)
-        })
+              return {
+                date: formatDate(date),
+                shown: dayInteractions.filter((item) => item.action === "shown").length,
+                redeemed: dayInteractions.filter((item) => item.action === "redeemed").length,
+              }
+            })
+
+            setQrCodeData(chartData)
+          },
+          (error) => {
+            console.warn("QR code listener error:", error)
+            // Set default values if there's a permission error
+            setQrCodeStats({
+              shown: 0,
+              redeemed: 0,
+              conversionRate: 0,
+            })
+            setQrCodeData([])
+          },
+        )
       } catch (error) {
         console.error("Error setting up QR code listener:", error)
+        // Set default values if there's an error
+        setQrCodeStats({
+          shown: 0,
+          redeemed: 0,
+          conversionRate: 0,
+        })
+        setQrCodeData([])
       }
     }
 
@@ -200,6 +260,9 @@ export default function AnalyticsPage() {
     )
   }
 
+  // Add this alert for when there are permission issues
+  const hasPermissionIssues = promotions.length === 0 && totalViews === 0 && totalClicks === 0
+
   // Custom colors for QR code chart
   const QR_COLORS = ["#6A0DAD", "#9333EA"]
 
@@ -209,6 +272,16 @@ export default function AnalyticsPage() {
         <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
         <p className="text-muted-foreground">Track the performance of your promotions</p>
       </div>
+
+      {hasPermissionIssues && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Analytics data may be limited due to database permissions. Some features may not be available until proper
+            access is configured.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
