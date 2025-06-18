@@ -18,7 +18,19 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Calendar, Tag, MapPin, AlertCircle, ImagePlus, ArrowLeft } from "lucide-react"
-import { doc, updateDoc, getDoc, addDoc, collection, GeoPoint, Timestamp, serverTimestamp } from "firebase/firestore"
+import {
+  doc,
+  updateDoc,
+  getDoc,
+  addDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  GeoPoint,
+  Timestamp,
+  serverTimestamp,
+} from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { db, storage } from "@/lib/firebase"
 import { format } from "date-fns"
@@ -31,6 +43,7 @@ import { Badge } from "@/components/ui/badge"
 
 const PROMOTION_CATEGORIES = ["Restaurant", "Health", "Entertainment", "Retail", "Spa", "Other"]
 const MAX_IMAGES = 6
+const MAX_PROMOTIONS = 1
 
 export default function NewPromotionPage() {
   const { user, userProfile } = useAuth()
@@ -46,6 +59,8 @@ export default function NewPromotionPage() {
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(true)
+  const [existingPromotions, setExistingPromotions] = useState<any[]>([])
+  const [reachedLimit, setReachedLimit] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const { toast } = useToast()
@@ -58,6 +73,7 @@ export default function NewPromotionPage() {
       }
 
       try {
+        // Fetch user business data
         const docRef = doc(db, "business_users", user.uid)
         const docSnap = await getDoc(docRef)
 
@@ -67,6 +83,32 @@ export default function NewPromotionPage() {
           setBusinessName(data.business_name || "")
           console.log("Fetched business name:", data.business_name)
         }
+
+        // Check existing promotions count
+        const meetupsQuery = query(
+          collection(db, "meetups"),
+          where("creator_id", "==", user.uid),
+          where("creator_type", "==", "business"),
+          where("is_live", "==", true),
+        )
+        const meetupsSnapshot = await getDocs(meetupsQuery)
+
+        const meetupsData = meetupsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+
+        setExistingPromotions(meetupsData)
+        const hasReachedLimit = meetupsData.length >= MAX_PROMOTIONS
+        setReachedLimit(hasReachedLimit)
+
+        if (hasReachedLimit) {
+          toast({
+            variant: "destructive",
+            title: "Promotion limit reached",
+            description: `You can only have ${MAX_PROMOTIONS} active promotion at a time. Please delete your existing promotion to create a new one.`,
+          })
+        }
       } catch (error) {
         console.error("Error fetching user data:", error)
       }
@@ -75,7 +117,7 @@ export default function NewPromotionPage() {
     }
 
     fetchUserData()
-  }, [user])
+  }, [user, toast])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -142,6 +184,15 @@ export default function NewPromotionPage() {
         variant: "destructive",
         title: "Authentication error",
         description: "You must be logged in to create a promotion.",
+      })
+      return
+    }
+
+    if (existingPromotions.length >= MAX_PROMOTIONS) {
+      toast({
+        variant: "destructive",
+        title: "Promotion limit reached",
+        description: `You can only have ${MAX_PROMOTIONS} active promotion at a time.`,
       })
       return
     }
@@ -295,6 +346,17 @@ export default function NewPromotionPage() {
         </div>
       </div>
 
+      {/* Limit Alert */}
+      {reachedLimit && (
+        <Alert variant="destructive" className="mb-8">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            You have reached the maximum limit of {MAX_PROMOTIONS} active promotion. Please delete your existing
+            promotion before creating a new one.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Form Section */}
         <div className="lg:col-span-2">
@@ -331,6 +393,7 @@ export default function NewPromotionPage() {
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. 20% Off Lunch Specials"
                     required
+                    disabled={reachedLimit}
                   />
                 </div>
 
@@ -347,6 +410,7 @@ export default function NewPromotionPage() {
                         variant={category === cat ? "default" : "outline"}
                         size="sm"
                         onClick={() => setCategory(cat)}
+                        disabled={reachedLimit}
                       >
                         {cat}
                       </Button>
@@ -374,6 +438,7 @@ export default function NewPromotionPage() {
                     className="resize-none"
                     rows={4}
                     required
+                    disabled={reachedLimit}
                   />
                 </div>
 
@@ -381,6 +446,7 @@ export default function NewPromotionPage() {
                 <AddressAutocomplete
                   value={address}
                   onChange={handleAddressChange}
+                  disabled={reachedLimit}
                   placeholder="Click to enter your business address..."
                   label="Business Address"
                 />
@@ -390,7 +456,12 @@ export default function NewPromotionPage() {
                   <Label>Expiration Date (Optional)</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button type="button" variant="outline" className="w-full justify-start text-left font-normal">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                        disabled={reachedLimit}
+                      >
                         <Calendar className="mr-2 h-4 w-4" />
                         {expirationDate ? format(expirationDate, "PPP") : <span>Pick a date</span>}
                       </Button>
@@ -421,8 +492,8 @@ export default function NewPromotionPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={imageFiles.length >= MAX_IMAGES}
+                      onClick={() => !reachedLimit && fileInputRef.current?.click()}
+                      disabled={reachedLimit || imageFiles.length >= MAX_IMAGES}
                       className="w-full"
                     >
                       <ImagePlus className="h-4 w-4 mr-2" />
@@ -438,7 +509,7 @@ export default function NewPromotionPage() {
                       accept="image/*"
                       multiple
                       className="hidden"
-                      disabled={imageFiles.length >= MAX_IMAGES}
+                      disabled={reachedLimit || imageFiles.length >= MAX_IMAGES}
                     />
                     <p className="text-sm text-muted-foreground">Upload JPG or PNG images for your promotion</p>
                   </div>
@@ -454,7 +525,7 @@ export default function NewPromotionPage() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={isLoading} className="sm:flex-1">
+                  <Button type="submit" disabled={isLoading || reachedLimit} className="sm:flex-1">
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -516,7 +587,9 @@ export default function NewPromotionPage() {
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-sm">
-                  Your promotion will be published immediately after creation and will be visible to customers.
+                  {reachedLimit
+                    ? "You must delete your existing promotion before creating a new one."
+                    : "Your promotion will be published immediately after creation and will be visible to customers."}
                 </AlertDescription>
               </Alert>
             </CardContent>

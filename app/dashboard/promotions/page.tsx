@@ -59,6 +59,8 @@ const categoryPlaceholders: Record<string, string> = {
   Other: "/placeholder.svg?height=200&width=300&text=Business",
 }
 
+const MAX_PROMOTIONS = 1
+
 export default function PromotionsPage() {
   const { user, loading: authLoading } = useAuth()
   const [promotions, setPromotions] = useState<any[]>([])
@@ -157,6 +159,14 @@ export default function PromotionsPage() {
   }
 
   const handleCreatePromotion = () => {
+    if (promotions.length >= MAX_PROMOTIONS) {
+      toast({
+        variant: "destructive",
+        title: "Promotion limit reached",
+        description: `You can only have ${MAX_PROMOTIONS} active promotion at a time. Please delete your existing promotion to create a new one.`,
+      })
+      return
+    }
     router.push("/dashboard/promotions/new")
   }
 
@@ -183,6 +193,8 @@ export default function PromotionsPage() {
       return "Invalid date"
     }
   }
+
+  const reachedLimit = promotions.length >= MAX_PROMOTIONS
 
   if (error) {
     return (
@@ -220,13 +232,36 @@ export default function PromotionsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Promotions</h1>
-          <p className="text-muted-foreground">Create and manage your business promotions</p>
+          <p className="text-muted-foreground">Create and manage your business promotion</p>
         </div>
-        <Button onClick={handleCreatePromotion} className="w-full sm:w-auto">
+        <Button onClick={handleCreatePromotion} className="w-full sm:w-auto" disabled={reachedLimit}>
           <Plus className="mr-2 h-4 w-4" />
-          Create Promotion
+          {reachedLimit ? "Replace Promotion" : "Create Promotion"}
         </Button>
       </div>
+
+      {/* Usage Stats */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="space-y-1">
+              <h3 className="font-semibold">Promotion Usage</h3>
+              <p className="text-sm text-muted-foreground">
+                {promotions.length} of {MAX_PROMOTIONS} promotion slot used
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-32 bg-secondary rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${(promotions.length / MAX_PROMOTIONS) * 100}%` }}
+                />
+              </div>
+              <span className="text-sm font-medium">{Math.round((promotions.length / MAX_PROMOTIONS) * 100)}%</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Promotions Grid */}
       {promotions.length > 0 ? (
@@ -315,7 +350,8 @@ export default function PromotionsPage() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete Promotion</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to delete "{promotion.title}"? This action cannot be undone.
+                              Are you sure you want to delete "{promotion.title}"? This action cannot be undone and will
+                              free up your promotion slot for a new one.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -342,13 +378,14 @@ export default function PromotionsPage() {
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
               <Tag className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">No promotions yet</h3>
+            <h3 className="text-xl font-semibold mb-2">No promotion yet</h3>
             <p className="text-muted-foreground max-w-md mb-6">
-              Create your first promotion to attract more customers to your business.
+              Create your promotion to attract more customers to your business. You can have one active promotion at a
+              time.
             </p>
             <Button onClick={handleCreatePromotion}>
               <Plus className="mr-2 h-4 w-4" />
-              Create Your First Promotion
+              Create Your Promotion
             </Button>
           </CardContent>
         </Card>
