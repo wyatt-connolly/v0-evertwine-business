@@ -1,91 +1,146 @@
 "use client"
 
 import type React from "react"
-import { createContext, useState, useEffect, useContext } from "react"
-import { getAuth, onAuthStateChanged, type User } from "firebase/auth"
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore"
-import { app } from "../firebase"
+import { createContext, useContext, useEffect, useState } from "react"
+import {
+  type User,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+  updateProfile,
+} from "firebase/auth"
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
+import { auth, db } from "@/lib/firebase"
 
-interface UserProfile {
-  firstName: string
-  lastName: string
-  email: string
-  // Add other profile fields as needed
-}
-
-interface AuthContextType {
+interface AuthContextProps {
   user: User | null
-  userProfile: UserProfile | null
   loading: boolean
-  updateUserProfile: (profileData: UserProfile) => Promise<void>
+  signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string, username: string) => Promise<void>
+  logout: () => Promise<void>
+  resetPassword: (email: string) => Promise<void>
+  updateUser: (displayName: string) => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  userProfile: null,
-  loading: true,
-  updateUserProfile: async () => {},
-})
+const AuthContext = createContext<AuthContextProps | null>(null)
 
-interface AuthProviderProps {
-  children: React.ReactNode
+export const useAuth = () => {
+  const context = useContext(AuthContext)
+
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider")
+  }
+
+  return context
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
-
-  const auth = getAuth(app)
-  const db = getFirestore(app)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setUser(user)
-        const userDocRef = doc(db, "users", user.uid)
-        const userDocSnap = await getDoc(userDocRef)
+        const userRef = doc(db, "users", user.uid)
+        const docSnap = await getDoc(userRef)
 
-        if (userDocSnap.exists()) {
-          setUserProfile(userDocSnap.data() as UserProfile)
+        if (docSnap.exists()) {
+          setUser(user)
         } else {
-          // If the document doesn't exist, create a default one
-          const defaultProfile: UserProfile = {
-            firstName: "",
-            lastName: "",
-            email: user.email || "",
-          }
-          await setDoc(userDocRef, defaultProfile)
-          setUserProfile(defaultProfile)
+          // If the document doesn't exist, create it
+          await setDoc(doc(db, "users", user.uid), {
+            email: user.email,
+            displayName: user.displayName || "New User",
+            createdAt: serverTimestamp(),
+          })
+          setUser(user)
         }
       } else {
         setUser(null)
-        setUserProfile(null)
       }
       setLoading(false)
     })
 
     return () => unsubscribe()
-  }, [auth, db])
+  }, [])
 
-  const updateUserProfile = async (profileData: UserProfile) => {
-    if (user) {
-      const userDocRef = doc(db, "users", user.uid)
-      await setDoc(userDocRef, profileData)
-      setUserProfile(profileData)
+  const signIn = async (email: string, password: string) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password)
+    } catch (error: any) {
+      throw new Error(error.message)
     }
   }
 
-  const value = {
+  const signUp = async (email: string, password: string, username: string) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      const user = userCredential.user
+
+      await updateProfile(user, { displayName: username })
+
+      await setDoc(doc(db, "users", user.uid), {
+        email: user.email,
+        displayName: username,
+        createdAt: serverTimestamp(),
+      })
+
+      setUser(user) // Update local state immediately after signup
+    } catch (error: any) {
+      throw new Error(error.message)
+    }
+  }
+
+  const logout = async () => {
+    try {
+      await signOut(auth)
+    } catch (error: any) {
+      throw new Error(error.message)
+    }
+  }
+
+  const resetPassword = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email)
+    } catch (error: any) {
+      throw new Error(error.message)
+    }
+  }
+
+  const updateUser = async (displayName: string) => {
+    try {
+      if (user) {
+        await updateProfile(user, { displayName })
+
+        // Update the user document in Firestore as well
+        const userRef = doc(db, "users", user.uid)
+        await setDoc(
+          userRef,
+          {
+            ...user,
+            displayName: displayName,
+          },
+          { merge: true },
+        )
+
+        setUser({ ...user, displayName: displayName }) // Update local state immediately
+      }
+    } catch (error: any) {
+      throw new Error(error.message)
+    }
+  }
+
+  const value: AuthContextProps = {
     user,
-    userProfile,
     loading,
-    updateUserProfile,
+    signIn,
+    signUp,
+    logout,
+    resetPassword,
+    updateUser,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export const useAuth = () => {
-  return useContext(AuthContext)
 }
