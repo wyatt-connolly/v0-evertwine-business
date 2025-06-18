@@ -17,8 +17,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Home, BarChart2, Tag, Settings, Menu, X, LogOut, User, Bell, Plus } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import FirebaseError from "@/components/firebase-error"
-import { firebaseInitError } from "@/lib/firebase"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 
@@ -52,7 +50,7 @@ export default function DashboardLayout({ children }) {
         const promotionsQuery = query(
           collection(db, "promotions"),
           where("business_id", "==", user.uid),
-          where("status", "==", "live"),
+          where("is_live", "==", true),
         )
         const promotionsSnapshot = await getDocs(promotionsQuery)
         setPromotionsCount(promotionsSnapshot.docs.length)
@@ -64,11 +62,6 @@ export default function DashboardLayout({ children }) {
 
     fetchPromotionsCount()
   }, [user])
-
-  // If Firebase initialization failed, show error component
-  if (firebaseInitError) {
-    return <FirebaseError />
-  }
 
   const navigation = [
     {
