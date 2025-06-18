@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Info, Eye, EyeOff, ShieldAlert, Home, AlertCircle } from "lucide-react"
+import { Loader2, Info, Eye, EyeOff, ShieldAlert, Home } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function LoginPage() {
@@ -53,8 +53,6 @@ export default function LoginPage() {
         return "Too many failed login attempts. Please try again later or reset your password."
       case "auth/network-request-failed":
         return "Network error. Please check your internet connection and try again."
-      case "Firebase services are not available":
-        return "Authentication service is currently unavailable. Please try again later."
       default:
         return "An unexpected error occurred. Please try again."
     }
@@ -65,15 +63,7 @@ export default function LoginPage() {
     setIsLoading(true)
     setError("")
 
-    // Basic validation
-    if (!email || !password) {
-      setError("Please enter both email and password.")
-      setIsLoading(false)
-      return
-    }
-
     try {
-      console.log("🔐 Attempting to sign in with:", email)
       await signIn(email, password)
 
       // Show success toast
@@ -186,16 +176,6 @@ export default function LoginPage() {
               </AlertDescription>
             </Alert>
           )}
-
-          {/* Demo Account Info */}
-          <Alert className="mb-4 border-blue-200 bg-blue-50">
-            <AlertCircle className="h-4 w-4 text-blue-600" />
-            <AlertTitle className="text-blue-800 font-semibold">Demo Account</AlertTitle>
-            <AlertDescription className="text-blue-700">
-              To test the application, you'll need to create an account first using the "Sign up" link below, or use
-              Google authentication.
-            </AlertDescription>
-          </Alert>
 
           {error && (
             <Alert variant="destructive" className="mb-4 border-red-200 bg-red-50">
