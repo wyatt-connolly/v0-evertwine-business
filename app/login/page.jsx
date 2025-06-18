@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Info, Eye, EyeOff, ShieldAlert, Home } from "lucide-react"
-import FirebaseError from "@/components/firebase-error"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function LoginPage() {
@@ -23,7 +22,7 @@ export default function LoginPage() {
   const [isPreview, setIsPreview] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-  const { user, loading, firebaseInitialized } = useAuthState()
+  const { user, loading } = useAuthState()
 
   // Check if we're in a preview environment
   useEffect(() => {
@@ -37,11 +36,6 @@ export default function LoginPage() {
       router.push("/dashboard")
     }
   }, [user, loading, router])
-
-  // If Firebase is not initialized, show the error component
-  if (!firebaseInitialized) {
-    return <FirebaseError />
-  }
 
   const getErrorMessage = (error) => {
     const errorCode = error.code || error.message
