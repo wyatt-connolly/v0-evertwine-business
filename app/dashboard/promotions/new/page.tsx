@@ -79,7 +79,6 @@ export default function NewPromotionPage() {
 
         if (docSnap.exists()) {
           const data = docSnap.data()
-          setAddress(data.address || "")
           setBusinessName(data.business_name || "")
           console.log("Fetched business name:", data.business_name)
         }
